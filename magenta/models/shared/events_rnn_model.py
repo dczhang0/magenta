@@ -111,6 +111,7 @@ class EventSequenceRnnModel(mm.BaseModel):
         event_sequences, softmax)
     p = softmax[range(len(event_sequences)), -1, indices]
 
+    print('loglik', loglik + np.log(p), len(event_sequences), list(map(len, event_sequences)), event_sequences[0][-1])
     return final_state, loglik + np.log(p)
 
   def _generate_step(self, event_sequences, inputs, initial_states,
