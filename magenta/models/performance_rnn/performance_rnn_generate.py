@@ -15,6 +15,9 @@
 
 Uses flags to define operation.
 """
+# bundle_file, config, output_dir, num_outputs, num_steps, primer_melody
+# the path of mag file, file name
+# original: None
 
 import ast
 import os
@@ -37,7 +40,7 @@ tf.app.flags.DEFINE_string(
     'run_dir', None,
     'Path to the directory where the latest checkpoint will be loaded from.')
 tf.app.flags.DEFINE_string(
-    'bundle_file', None,
+    'bundle_file', '/home/zha231/Documents/magenta/magenta/models/performance_rnn/performance.mag',
     'Path to the bundle file. If specified, this will take priority over '
     'run_dir, unless save_generator_bundle is True, in which case both this '
     'flag and run_dir are required')
