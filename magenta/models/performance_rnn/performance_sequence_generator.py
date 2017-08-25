@@ -138,10 +138,15 @@ class PerformanceRnnSequenceGenerator(mm.BaseSequenceGenerator):
 
     total_steps = performance.num_steps + (
         generate_end_step - generate_start_step)
+    # 0+3000-1
+    # num_steps: Returns how many steps long this sequence is.
+    #   Length of the sequence in quantized steps.
+    # ???generate_start_step, start step
 
     if not performance:
       # Primer is empty; let's just start with silence.
       performance.set_length(min(performance_lib.MAX_SHIFT_STEPS, total_steps))
+      # performance.num_steps==100,,,(100,shift)???
 
     while performance.num_steps < total_steps:
       # Assume there's around 10 notes per second and 4 RNN steps per note.

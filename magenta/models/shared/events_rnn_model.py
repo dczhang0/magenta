@@ -87,6 +87,7 @@ class EventSequenceRnnModel(mm.BaseModel):
     graph_initial_state = self._session.graph.get_collection('initial_state')
     graph_final_state = self._session.graph.get_collection('final_state')
     graph_softmax = self._session.graph.get_collection('softmax')[0]
+
     graph_temperature = self._session.graph.get_collection('temperature')
 
     feed_dict = {graph_inputs: inputs,
@@ -111,7 +112,10 @@ class EventSequenceRnnModel(mm.BaseModel):
         event_sequences, softmax)
     p = softmax[range(len(event_sequences)), -1, indices]
 
-    print('loglik', loglik + np.log(p), len(event_sequences), list(map(len, event_sequences)), event_sequences[0][-1])
+    #print('loglik', loglik + np.log(p), len(event_sequences), list(map(len, event_sequences)), event_sequences[0][-1])
+    print('loglik', loglik + np.log(p), list(map(len, event_sequences)), event_sequences[0][-1])
+    # 'NOTE_OFF', 'NOTE_ON', 'TIME_SHIFT',  'VELOCITY', 'event_type', 'event_value'
+    # print('event_sequence', event_sequences[0], event_sequences[0]._events)
     return final_state, loglik + np.log(p)
 
   def _generate_step(self, event_sequences, inputs, initial_states,
@@ -162,6 +166,7 @@ class EventSequenceRnnModel(mm.BaseModel):
           padded_inputs[i:j],
           state_util.batch(padded_initial_states[i:j], batch_size),
           temperature)
+      #--------------------------------------------------
       final_states += state_util.unbatch(
           batch_final_state, batch_size)[:j - i - pad_amt]
       loglik[i:j - pad_amt] = batch_loglik[:j - i - pad_amt]
@@ -206,7 +211,8 @@ class EventSequenceRnnModel(mm.BaseModel):
       all_final_state, all_step_loglik = self._generate_step(
           all_event_sequences, all_inputs, all_final_state, temperature)
       all_loglik += all_step_loglik
-
+    # ------------------------------------------
+    print('all_loglik', all_loglik)
     return all_event_sequences, all_final_state, all_loglik
 
   def _prune_branches(self, event_sequences, final_states, loglik, k):
@@ -313,7 +319,7 @@ class EventSequenceRnnModel(mm.BaseModel):
     event_sequences, final_state, loglik = self._generate_branches(
         event_sequences, loglik, branch_factor, first_iteration_num_steps,
         inputs, initial_states, temperature)
-
+    #------------------------------------------
     num_iterations = (num_steps -
                       first_iteration_num_steps) / steps_per_iteration
 
@@ -334,14 +340,15 @@ class EventSequenceRnnModel(mm.BaseModel):
       event_sequences, final_state, loglik = self._generate_branches(
           event_sequences, loglik, branch_factor, steps_per_iteration, inputs,
           final_state, temperature)
-
+      # loglik is the log probability of the sequence.
+      # ------------------------------------------
     # Prune to a single sequence.
     event_sequences, final_state, loglik = self._prune_branches(
         event_sequences, final_state, loglik, k=1)
 
     tf.logging.info('Beam search yields sequence with log-likelihood: %f ',
                     loglik[0])
-
+    # loglik is the log probability of the sequence.
     return event_sequences[0]
 
   def _generate_events(self, num_steps, primer_events, temperature=1.0,
@@ -400,6 +407,8 @@ class EventSequenceRnnModel(mm.BaseModel):
       events = self._beam_search(events, num_steps - len(events), temperature,
                                  beam_size, branch_factor, steps_per_iteration,
                                  control_events, modify_events_callback)
+    # -------------ends with max rnn step-----------------------------
+
     return events
 
   def _evaluate_batch_log_likelihood(self, event_sequences, inputs,

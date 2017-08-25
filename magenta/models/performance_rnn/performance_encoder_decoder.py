@@ -30,7 +30,8 @@ EVENT_RANGES = [
      performance_lib.MIN_MIDI_PITCH, performance_lib.MAX_MIDI_PITCH),
     (PerformanceEvent.TIME_SHIFT, 1, performance_lib.MAX_SHIFT_STEPS),
 ]
-
+# 127+127+100
+# 127+127+100
 
 class PerformanceOneHotEncoding(encoder_decoder.OneHotEncoding):
   """One-hot encoding for performance events."""
