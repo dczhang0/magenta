@@ -15,6 +15,9 @@
 
 Uses flags to define operation.
 """
+# bundle_file, config, output_dir, num_outputs, num_steps, primer_melody
+# the path of mag file, file name
+# original: None
 
 import ast
 import os
@@ -37,7 +40,7 @@ tf.app.flags.DEFINE_string(
     'run_dir', None,
     'Path to the directory where the latest checkpoint will be loaded from.')
 tf.app.flags.DEFINE_string(
-    'bundle_file', None,
+    'bundle_file', '/home/zha231/Documents/magenta/magenta/models/performance_rnn/performance.mag',
     'Path to the bundle file. If specified, this will take priority over '
     'run_dir, unless save_generator_bundle is True, in which case both this '
     'flag and run_dir are required')
@@ -207,6 +210,10 @@ def run_with_flags(generator):
   digits = len(str(FLAGS.num_outputs))
   for i in range(FLAGS.num_outputs):
     generated_sequence = generator.generate(primer_sequence, generator_options)
+    # sequence_generator: generate
+    # Performance_Sequence_Generator: _generate
+    # performance_model: generate_performance
+    # events_rnn_model: _generate_events
 
     midi_filename = '%s_%s.mid' % (date_and_time, str(i + 1).zfill(digits))
     midi_path = os.path.join(output_dir, midi_filename)
@@ -224,6 +231,7 @@ def main(unused_argv):
 
   config_id = bundle.generator_details.id if bundle else FLAGS.config
   config = performance_model.default_configs[config_id]
+  #????performance_lib.DEFAULT_STEPS_PER_SECOND,
   config.hparams.parse(FLAGS.hparams)
   # Having too large of a batch size will slow generation down unnecessarily.
   config.hparams.batch_size = min(
@@ -248,6 +256,7 @@ def main(unused_argv):
 
 
 def console_entry_point():
+  # print(main)
   tf.app.run(main)
 
 
