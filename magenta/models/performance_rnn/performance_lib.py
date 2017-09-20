@@ -401,6 +401,7 @@ class Performance(events_lib.EventSequence):
           note.end_time = step * seconds_per_step + sequence_start_time
           if (max_note_duration and
               note.end_time - note.start_time > max_note_duration):
+            # print(note.end_time, note.start_time)
             note.end_time = note.start_time + max_note_duration
           note.pitch = event.event_value
           note.velocity = pitch_velocity

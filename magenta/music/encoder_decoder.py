@@ -266,6 +266,7 @@ class EventSequenceEncoderDecoder(object):
     for i in xrange(len(event_sequences)):
       chosen_class = np.random.choice(num_classes, p=softmax[i][-1])
       event = self.class_index_to_event(chosen_class, event_sequences[i])
+      #--------decode------------------------------suspend------------------------------------
       event_sequences[i].append(event)
       chosen_classes.append(chosen_class)
     return chosen_classes

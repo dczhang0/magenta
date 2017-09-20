@@ -70,5 +70,6 @@ class PerformanceOneHotEncoding(encoder_decoder.OneHotEncoding):
         return PerformanceEvent(
             event_type=event_type, event_value=min_value + index - offset)
       offset += max_value - min_value + 1
+      #--------------------------------suspend-----------------
 
     raise ValueError('Unknown event index: %s' % index)
