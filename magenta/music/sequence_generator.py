@@ -194,6 +194,7 @@ class BaseSequenceGenerator(object):
     """
     self.initialize()
     performance_Libo, softmax_Libo, indices_Libo = self._generate(input_sequence, generator_options)
+    # --------------------------------------------------------------------------------------------
     return performance_Libo, softmax_Libo, indices_Libo
 
   def create_bundle_file(self, bundle_file, bundle_description=None):

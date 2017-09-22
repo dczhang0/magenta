@@ -29,10 +29,10 @@ from magenta.protobuf import music_pb2
 # Ensure that the track extends up to the step we want to start generating.
 # performance.set_length(generate_start_step - performance.start_step)
 
-NUM_OUTPUTS = 2
+NUM_OUTPUTS = 1
 CONFIG = 'performance'
 BUNDLE_PATH = "/home/zha231/Downloads/performance.mag"
-NUM_STEPS = 1000
+NUM_STEPS = 150
 PRIMER_MELODY = "[60, -2, 60, -2, 67, -2, 67, -2]"
 PRIMER_PITCHES = ''
 PRIMER_MIDI = ''
@@ -117,29 +117,5 @@ tf.app.flags.DEFINE_string(
     'with the default hyperparameters.')
 
 
-def get_checkpoint():
-  """Get the training dir or checkpoint path to be used by the model."""
-  if FLAGS.run_dir and FLAGS.bundle_file and not FLAGS.save_generator_bundle:
-    raise magenta.music.SequenceGeneratorException(
-        'Cannot specify both bundle_file and run_dir')
-  if FLAGS.run_dir:
-    train_dir = os.path.join(os.path.expanduser(FLAGS.run_dir), 'train')
-    return train_dir
-  else:
-    return None
 
-
-def get_bundle():
-  """Returns a generator_pb2.GeneratorBundle object based read from bundle_file.
-
-  Returns:
-    Either a generator_pb2.GeneratorBundle or None if the bundle_file flag is
-    not set or the save_generator_bundle flag is set.
-  """
-  if FLAGS.save_generator_bundle:
-    return None
-  if FLAGS.bundle_file is None:
-    return None
-  bundle_file = os.path.expanduser(FLAGS.bundle_file)
-  return magenta.music.read_bundle_file(bundle_file)
 

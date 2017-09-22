@@ -394,6 +394,7 @@ class EventSequenceRnnModel(mm.BaseModel):
       EventSequenceRnnModelException: If the primer sequence has zero length or
           is not shorter than num_steps.
     """
+    # --------------------------------------------------------------------------------------------
     if (control_events is not None and
         not isinstance(self._config.encoder_decoder,
                        mm.ConditionalEventSequenceEncoderDecoder)):
