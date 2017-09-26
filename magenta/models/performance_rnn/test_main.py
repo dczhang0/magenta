@@ -123,27 +123,143 @@ def write_music(performance, time_gen_libo):
     tf.logging.info('Wrote %d MIDI files to %s', 1, output_dir)
 
 
-def weights_sect_sequence(performance, softmax_Libo, total_steps):
+def weights_sect_sequence(performance, softmax_Libo, indices_Libo, total_steps):
+    """
+    wrong, free sampling has no weights!!!!!!!!!!!!!!!
+    :param performance: generate sequence
+    :param softmax_Libo: the corresponding pmf
+    :param indices_Libo: the corresponding selected value in pmf
+    :param total_steps: required ending time
+    :return:
+    """
     MAX_SHIFT_STEPS = performance_lib.MAX_SHIFT_STEPS
     print('length of the whole sequence: %d' % (performance.__len__()))
     performance.set_length(total_steps)
     # since performance.num_steps > total_steps (time_steps, absolute time),
     # prune it into total_steps, the _events steps decrease correspondingly.
 
+    while performance._events[-1].event_type == 1:
+        performance._events.pop()
+    assert performance.num_steps == total_steps
+    print('length of the pruned whole sequence: %d' % (performance.__len__()))
+    # turn off the note right before the beginning of the start-------------------
+    len_performance = performance.__len__()
+    for i in range(len_performance):
+        i = i + 1
+        if performance._events[-i].event_type == 3:
+            index_last_shift = -i
+            # len_performance + index_last_shift
+            break
+    value_last_shift = performance._events[index_last_shift].event_value
+    pmf_prun = softmax_Libo[index_last_shift][-MAX_SHIFT_STEPS:]
+    fd_Libo = pmf_prun[value_last_shift - 1]
+    Fd_denomin = sum(pmf_prun[value_last_shift:])
+    # trimmed probability, order of pitch (ascending or descending)
+    loglik_pullback = fd_Libo / Fd_denomin
+    w = loglik_pullback
+    for j in range(len_performance):
+        j = j+1
+        if indices_Libo(j) >= 0 and j != index_last_shift:
+            p_step = softmax_Libo[-j][indices_Libo(-j)]
+            w = w * p_step
+
+    return w, performance
+
+def weights_ts(performance, softmax_Libo, total_steps):
+    """
+    :param performance: generate sequence
+    :param softmax_Libo: the corresponding pmf
+    :param total_steps: required ending time
+    :return:
+    """
+    MAX_SHIFT_STEPS = performance_lib.MAX_SHIFT_STEPS
+    print('length of the whole sequence: %d' % (performance.__len__()))
+    performance.set_length(total_steps)
     while performance._events[-1].event_type != 3:
         performance._events.pop()
     print('length of the pruned whole sequence: %d' % (performance.__len__()))
-    # turn off the note right before the beginning of the start-------------------
-    len_mag_Libo = performance.__len__()
-    value_libo = performance._events[-1].event_value
-    pmf_prun = softmax_Libo[len_mag_Libo - 1][-MAX_SHIFT_STEPS:]
-    fd_Libo = pmf_prun[value_libo - 1]
-    Fd_denomin = sum(pmf_prun[value_libo:])
+    assert performance.num_steps == total_steps
+    len_performance = performance.__len__()
+    for i in range(len_performance):
+        i = i + 1
+        if performance._events[-i].event_type == 3:
+            index_last_shift = -i
+            # len_performance + index_last_shift
+            break
+    value_last_shift = performance._events[index_last_shift].event_value
+    pmf_prun = softmax_Libo[index_last_shift][-MAX_SHIFT_STEPS:]
+    fd_Libo = pmf_prun[value_last_shift - 1]
+    Fd_denomin = sum(pmf_prun[value_last_shift:])
     # trimmed probability, order of pitch (ascending or descending)
-    w_i = fd_Libo / Fd_denomin
+    loglik_pullback = fd_Libo / Fd_denomin
+    w = loglik_pullback
     return w_i, performance
-#---------------------------probability in the fommer sequence
 
+def weights_pitch_start(performance, softmax_Libo, total_steps, pitch_start):
+    """
+    pitch is in ascending order!!!!!!!!!!!!!!!!!
+    :param performance: generate sequence
+    :param softmax_Libo: the corresponding pmf
+    :param total_steps: required ending time
+    :return:
+    """
+    MAX_SHIFT_STEPS = performance_lib.MAX_SHIFT_STEPS
+    MAX_MIDI_PITCH = performance_lib.MAX_MIDI_PITCH
+    print('length of the whole sequence: %d' % (performance.__len__()))
+    performance.set_length(total_steps)
+    print('length of the pruned whole sequence: %d' % (performance.__len__()))
+    assert performance.num_steps == total_steps
+    len_performance = performance.__len__()
+    for i in range(len_performance):
+        i = i + 1
+        if performance._events[-i].event_type == 1 and performance._events[-i].event_value < pitch_start:
+            index_on_pitch = -i
+            # len_performance + index_on_pitch
+            break
+
+    pitch_given = PerformanceEvent(event_type=1, event_value=pitch_start)
+    performance.append(pitch_given)
+    pmf_prun_time = softmax_Libo[index_on_pitch][-MAX_SHIFT_STEPS:]
+    pmf_prun_pitch = softmax_Libo[index_on_pitch][pitch_start+1: MAX_MIDI_PITCH-1]
+
+    fd_Libo = softmax_Libo[index_on_pitch][pitch_start]
+    Fd_denomin = sum(pmf_prun_time) + sum(pmf_prun_pitch)
+    # trimmed probability, order of pitch (ascending or descending)
+    loglik_pullback_pitch = fd_Libo / Fd_denomin
+    return loglik_pullback_pitch, performance
+
+def weights_pitch_next(performance, softmax_Libo, total_steps, pitch_next, bi_former):
+    """
+    pitch is in ascending order!!!!!!!!!!!!!!!!!
+    :param performance: generate sequence
+    :param softmax_Libo: the corresponding pmf
+    :param total_steps: required ending time
+    :return:
+    """
+    MAX_SHIFT_STEPS = performance_lib.MAX_SHIFT_STEPS
+    MAX_MIDI_PITCH = performance_lib.MAX_MIDI_PITCH
+    print('length of the whole sequence: %d' % (performance.__len__()))
+    performance.set_length(total_steps)
+    print('length of the pruned whole sequence: %d' % (performance.__len__()))
+    assert performance.num_steps == total_steps
+    len_performance = performance.__len__()
+    for i in range(len_performance):
+        i = i + 1
+        if performance._events[-i].event_type == 1 and performance._events[-i].event_value > pitch_start:
+            index_on_pitch = -i
+            # len_performance + index_on_pitch
+            break
+
+    pitch_given = PerformanceEvent(event_type=1, event_value=pitch_start)
+    performance.append(pitch_given)
+    pmf_prun_time = softmax_Libo[index_on_pitch][-MAX_SHIFT_STEPS:]
+    pmf_prun_pitch = softmax_Libo[index_on_pitch][pitch_start+1: MAX_MIDI_PITCH-1]
+
+    fd_Libo = softmax_Libo[index_on_pitch][pitch_start]
+    Fd_denomin = sum(pmf_prun_time) + sum(pmf_prun_pitch)
+    # trimmed probability, order of pitch (ascending or descending)
+    loglik_pullback_pitch = fd_Libo / Fd_denomin
+    return loglik_pullback_pitch, performance
 
 def systematic_resample(w):
     """
@@ -280,7 +396,7 @@ for i in range(FLAGS.num_outputs):
     performance, softmax_Libo, indices_Libo = generate_sect_with_flags(primer_sequence, total_steps)
     # performance[-2:-1]
     # performance[-2:]?????????????????????????--------------------
-    w_i, performance_i = weights_sect_sequence(performance, softmax_Libo, total_steps)
+    w_i, performance_i = weights_sect_sequence(performance, softmax_Libo, indices_Libo, total_steps)
     w.append(w_i)
     perf_list.append(performance_i)
 
@@ -299,24 +415,7 @@ args = {
     'steps_per_iteration': FLAGS.steps_per_iteration
 }
 w, performance_after_fix = generate_fixed_sect(performance_i, performance_i, args)
-# bundle = get_bundle()
-#
-# config_id = bundle.generator_details.id if bundle else FLAGS.config
-# config = performance_model.default_configs[config_id]
-# config.hparams.parse(FLAGS.hparams)
-# # Having too large of a batch size will slow generation down unnecessarily.
-# config.hparams.batch_size = min(
-#     config.hparams.batch_size, FLAGS.beam_size * FLAGS.branch_factor)
-#
-# generator = performance_sequence_generator.PerformanceRnnSequenceGenerator(
-#     model=performance_model.PerformanceRnnModel(config),
-#     details=config.details,
-#     steps_per_second=config.steps_per_second,
-#     num_velocity_bins=config.num_velocity_bins,
-#     checkpoint=get_checkpoint(),
-#     bundle=bundle)
-#
-# performance, softmax_Libo, indices_Libo = generator.generate_performance(performance, total_steps, args)
+
 
 time_gen_libo = float(total_steps)/performance_lib.DEFAULT_STEPS_PER_SECOND
 write_music(performance_i, time_gen_libo)

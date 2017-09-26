@@ -153,8 +153,9 @@ class PerformanceRnnSequenceGenerator(mm.BaseSequenceGenerator):
       # performance.num_steps==100,,,(100,shift)???
 
     len_prim_seq_Libo = extracted_perfs[0]._events.__len__()
-    softmax_Libo = np.zeros((len_prim_seq_Libo, 356))
-    indices_Libo = np.zeros((len_prim_seq_Libo, 1), dtype=np.int)
+    softmax_Libo = np.zeros((len_prim_seq_Libo, 356)) - 2
+    indices_Libo = np.zeros((len_prim_seq_Libo, 1), dtype=np.int) - 2
+    # negative number indicates primer sequence
 
     while performance.num_steps < total_steps:
       # Assume there's around 10 notes per second and 4 RNN steps per note.
