@@ -221,6 +221,7 @@ class PerformanceRnnSequenceGenerator(mm.BaseSequenceGenerator):
     # original, return generated_sequence
 
   def generate_performance(self, performance, total_steps, args):
+    #   generate with performance type of data
     if not performance:
         # Primer is empty; let's just start with silence.
         performance.set_length(min(performance_lib.MAX_SHIFT_STEPS, total_steps))
@@ -255,11 +256,11 @@ class PerformanceRnnSequenceGenerator(mm.BaseSequenceGenerator):
     assert indices_Libo.__len__() == performance.__len__()
     return performance, softmax_Libo, indices_Libo
 
-  def generate_performance_rnnstep(self, total_steps, primer_perfor, args):
-      self.initialize()
-      primer_perfor, softmax_Libo, indices_Libo = self._model.generate_performance(
-          total_steps, primer_perfor, **args)
-      return primer_perfor, softmax_Libo, indices_Libo
+  # def generate_performance_rnnstep(self, total_steps, primer_perfor, args):
+  #     self.initialize()
+  #     primer_perfor, softmax_Libo, indices_Libo = self._model.generate_performance(
+  #         total_steps, primer_perfor, **args)
+  #     return primer_perfor, softmax_Libo, indices_Libo
 
 def get_generator_map():
   """Returns a map from the generator ID to a SequenceGenerator class creator.
