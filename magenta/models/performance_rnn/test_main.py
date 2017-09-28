@@ -189,8 +189,8 @@ def weights_section(performance, softmax_Libo, total_steps):
             break
     value_last_shift = performance._events[index_last_shift].event_value
     pmf_prun = softmax_Libo[index_last_shift][-MAX_SHIFT_STEPS:]
-    fd_Libo = pmf_prun[value_last_shift - 1]
-    Fd_denomin = sum(pmf_prun[value_last_shift:])
+    fd_Libo = pmf_prun[value_last_shift]
+    Fd_denomin = sum(pmf_prun[value_last_shift+1:])
     # trimmed probability
     loglik_pullback = np.log(fd_Libo / Fd_denomin)
     w = loglik_pullback
