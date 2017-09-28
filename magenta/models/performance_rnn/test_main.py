@@ -114,7 +114,7 @@ def generate_sect_with_flags(primer_sequence, num_steps):
       checkpoint=get_checkpoint(),
       bundle=bundle)
 
-  print(primer_sequence)
+  # print(primer_sequence)
   # primer_sequence.notes
   # Derive the total number of seconds to generate.
   seconds_per_step = 1.0 / generator.steps_per_second
@@ -212,13 +212,14 @@ def systematic_resample(w):
     if w[0] < 0:
         w = np.exp(w)
         # if weight are log likely hood, converted it into normal format
+    w = np.array(w)
     w = w / np.sum(w)
     n = len(w)
     u = np.random.rand() / n
     s = w[0]
     j = 0
     re_index = np.zeros(n, dtype=int)
-    ninv = 1 / n
+    ninv = float(1) / n    # or 1.0/n , different form python 3,
     for k in range(n):
         while s < u:
             j += 1

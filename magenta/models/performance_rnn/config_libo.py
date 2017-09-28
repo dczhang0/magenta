@@ -29,10 +29,10 @@ from magenta.protobuf import music_pb2
 # Ensure that the track extends up to the step we want to start generating.
 # performance.set_length(generate_start_step - performance.start_step)
 
-NUM_OUTPUTS = 1
+NUM_OUTPUTS = 20
 CONFIG = 'performance'
 BUNDLE_PATH = "/home/zha231/Downloads/performance.mag"
-NUM_STEPS = 150
+NUM_STEPS = 200
 PRIMER_MELODY = "[60, -2, 60, -2, 67, -2, 67, -2]"
 PRIMER_PITCHES = ''
 PRIMER_MIDI = ''
