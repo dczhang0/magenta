@@ -95,11 +95,12 @@ def generate_sect_with_flags(primer_sequence, num_steps):
   Args:
     generator: The PerformanceRnnSequenceGenerator to use for generation.
   """
-  tf.logging.set_verbosity(FLAGS.log)
+  # tf.logging.set_verbosity(FLAGS.log)
 
   bundle = get_bundle()
 
   config_id = bundle.generator_details.id if bundle else FLAGS.config
+  # config_id = np.unicode(FLAGS.config)
   config = performance_model.default_configs[config_id]
   config.hparams.parse(FLAGS.hparams)
   # Having too large of a batch size will slow generation down unnecessarily.
