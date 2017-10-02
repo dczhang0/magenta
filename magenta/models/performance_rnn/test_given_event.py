@@ -125,115 +125,148 @@ def primer_performance_flag():
     return performance
 
 
+class pull_back_weight():
 
-def generate_specif_time(generator, primer_perfor, time_step_z, args):
     """
-    generate to the specific time of the event
-    :param generator:
-    :param primer_perfor:
-    :param time_step_z:
-    :param args:
-    :return:
-    """
-    MAX_SHIFT_STEPS = performance_lib.MAX_SHIFT_STEPS
-    assert primer_perfor.num_steps < time_step_z
+    performance_lib.Performance
 
-    while primer_perfor.num_steps < time_step_z:
-        total_steps = primer_perfor.__len__() + 1
+    """
+    def __init__(self, Performance):
+        self.performance = Performance
+
+
+    def generate_specif_time(self, generator, time_step_z, args):
+        """
+        generate to the specific time of the event
+        :param generator:
+        :param self:
+        :param time_step_z:
+        :param args:
+        :return:
+        """
+        MAX_SHIFT_STEPS = performance_lib.MAX_SHIFT_STEPS
+        assert self.performance.num_steps < time_step_z
+
+        while self.performance.num_steps < time_step_z:
+            total_steps = self.performance.__len__() + 1
+            generator.initialize()
+            self.performance, softmax_Libo, indices_Libo = generator._model.generate_performance(
+                total_steps, self.performance, **args)
+            # generate 1 rnn_step
+
+        value_shift = self.performance._events[-1].event_value
+        pmf_prun = softmax_Libo[-1][-MAX_SHIFT_STEPS:]
+        fd_Libo = pmf_prun[value_shift - 1]
+        Fd_denomin = sum(pmf_prun[value_shift:])
+        self.performance.set_length(time_step_z)
+        # trimmed probability, order of pitch (ascending or descending)
+        w = np.log(fd_Libo / Fd_denomin)
+        return w
+
+
+    def generate_fixed_onpitch(self, generator, pitch_z, args):
+        """
+        after arriving the specific time, turn on (the pitch of) the next given event
+        :param generator:
+        :param self:
+        :param pitch_z:
+        :param args:
+        :return:
+        """
+        total_steps = self.performance.__len__() + 1
         generator.initialize()
-        primer_perfor, softmax_Libo, indices_Libo = generator._model.generate_performance(
-            total_steps, primer_perfor, **args)
-        # generate 1 rnn_step
+        self.performance, softmax_Libo, indices_Libo = generator._model.generate_performance(
+            total_steps, self.performance, **args)
+        fd_Libo = softmax_Libo[-1][pitch_z]
+        pitch_given = PerformanceEvent(event_type=1, event_value=pitch_z)
+        self.performance.append(pitch_given)
+        w = np.log(fd_Libo)
 
-    value_shift = primer_perfor._events[-1].event_value
-    pmf_prun = softmax_Libo[-1][-MAX_SHIFT_STEPS:]
-    fd_Libo = pmf_prun[value_shift - 1]
-    Fd_denomin = sum(pmf_prun[value_shift:])
-    primer_perfor.set_length(time_step_z)
-    # trimmed probability, order of pitch (ascending or descending)
-    w = np.log(fd_Libo / Fd_denomin)
-    return w, primer_perfor
+        return w
 
 
-def generate_fixed_onpitch(generator, primer_perfor, pitch_z, args):
-    """
-    after arriving the specific time, turn on (the pitch of) the next given event
-    :param generator:
-    :param primer_perfor:
-    :param pitch_z:
-    :param args:
-    :return:
-    """
-    total_steps = primer_perfor.__len__() + 1
-    generator.initialize()
-    primer_perfor, softmax_Libo, indices_Libo = generator._model.generate_performance(
-        total_steps, primer_perfor, **args)
-    fd_Libo = softmax_Libo[-1][pitch_z]
-    pitch_given = PerformanceEvent(event_type=1, event_value=pitch_z)
-    primer_perfor.append(pitch_given)
-    w = np.log(fd_Libo)
+    def generate_unfixed_onpitch(self, generator, pitch_z, time_step_z, args):
+        """
+        after arriving the specific time, sample to(turn on) the specific given pitch
+        assuming when turn on the pitch in ascending order
+        :param generator:
+        :param self:
+        :param time_step_z:
+        :param args:
+        :return:
+        """
+        MAX_MIDI_PITCH = performance_lib.MAX_MIDI_PITCH - 1
+        MAX_SHIFT_STEPS = performance_lib.MAX_SHIFT_STEPS
+        hotcoding = PerformanceOneHotEncoding()
+        assert self.performance.num_steps == time_step_z
+        # get form self.performance
+        while self.performance.num_steps == time_step_z:
+            # run across time or pitch
+            total_steps = self.performance.num_steps + 1
+            generator.initialize()
+            self.performance, softmax_Libo, indices_Libo = generator._model.generate_performance(
+                total_steps, self.performance, **args)
+            encode_value = hotcoding.encode_event(self.performance._events[-1])
 
-    return w, primer_perfor
+            if pitch_z < encode_value < MAX_MIDI_PITCH:
+                break
 
+        # pull back
+        self.performance._events.pop()
+        pitch_given = PerformanceEvent(event_type=1, event_value=pitch_z)
+        self.performance.append(pitch_given)
 
-def generate_unfixed_onpitch(generator, primer_perfor, pitch_z, time_step_z, args):
-    """
-    after arriving the specific time, sample to(turn on) the specific given pitch
-    assuming when turn on the pitch in ascending order
-    :param generator:
-    :param primer_perfor:
-    :param time_step_z:
-    :param args:
-    :return:
-    """
-    MAX_MIDI_PITCH = performance_lib.MAX_MIDI_PITCH - 1
-    hotcoding = PerformanceOneHotEncoding()
-    assert primer_perfor.num_steps == time_step_z
+        pmf_prun_time = softmax_Libo[-1][-MAX_SHIFT_STEPS:]
+        pmf_prun_pitch = softmax_Libo[-1][pitch_z + 1: MAX_MIDI_PITCH]
+        fd_Libo = softmax_Libo[-1][pitch_z]
+        Fd_denomin = sum(pmf_prun_time) + sum(pmf_prun_pitch)
+        w = np.log(fd_Libo / Fd_denomin)
 
-    while primer_perfor.num_steps == time_step_z:
-        # run across time or pitch
-        total_steps = primer_perfor.num_steps + 1
-        generator.initialize()
-        primer_perfor, softmax_Libo, indices_Libo = generator._model.generate_performance(
-            total_steps, primer_perfor, **args)
-        encode_value = hotcoding.encode_event(primer_perfor._events[-1])
-
-        if pitch_z < encode_value < MAX_MIDI_PITCH:
-            break
-
-    # pull back
-    primer_perfor._events.pop()
-    pitch_given = PerformanceEvent(event_type=1, event_value=pitch_z)
-    primer_perfor.append(pitch_given)
-
-    pmf_prun_time = softmax_Libo[-1][-MAX_SHIFT_STEPS:]
-    pmf_prun_pitch = softmax_Libo[-1][pitch_z + 1: MAX_MIDI_PITCH]
-    fd_Libo = softmax_Libo[-1][pitch_z]
-    Fd_denomin = sum(pmf_prun_time) + sum(pmf_prun_pitch)
-    w = np.log(fd_Libo / Fd_denomin)
-
-    return w, primer_perfor
+        return w
 
 
-def generate_off_pitch(generator, primer_perfor, pitch_z, args):
-    """
-    after arriving the specific time, turn off the specific note
-    :param generator:
-    :param primer_perfor:
-    :param pitch_z:
-    :param args:
-    :return:
-    """
-    total_steps = primer_perfor.__len__() + 1
-    generator.initialize()
-    primer_perfor, softmax_Libo, indices_Libo = generator._model.generate_performance(
-        total_steps, primer_perfor, **args)
-    fd_Libo = softmax_Libo[-1][pitch_z]
-    # just one matrix, consider the turn off or turn on in the duration!!!!!!!!!!!!!!!!!!
-    pitch_given = PerformanceEvent(event_type=2, event_value=pitch_z)
-    primer_perfor.append(pitch_given)
-    w = np.log(fd_Libo)
-    return w, primer_perfor
+    def generate_off_pitch(self, generator, pitch_z, time_on_z, args):
+        """
+        after arriving the specific time, turn off the specific note
+        :param generator:
+        :param self:
+        :param pitch_z:
+        :param args:
+        :return:
+        """
+        corrupt = self.check_duration(self, pitch_z, time_on_z)
+        if corrupt:
+            w = -10**(9)
+        else:
+            total_steps = self.performance.__len__() + 1
+            generator.initialize()
+            self.performance, softmax_Libo, indices_Libo = generator._model.generate_performance(
+                total_steps, self.performance, **args)
+            fd_Libo = softmax_Libo[-1][pitch_z]
+            # just one matrix
+            pitch_given = PerformanceEvent(event_type=2, event_value=pitch_z)
+            self.performance.append(pitch_given)
+            w = np.log(fd_Libo)
+
+        return w
+
+
+    def check_duration(self, pitch_z, time_on_z):
+        """
+        check whether there are turn on or turn off in the duration of one specific note
+        :param pitch_z:
+        :param time_on_z:
+        :return:
+        """
+        j = 0
+        corrupt = False
+        while self.performance.num_steps > time_on_z:
+            j = j - 1
+            if self.performance._events[j].event_value == pitch_z:
+                corrupt = True
+                break
+
+        return corrupt
 
 
 def systematic_resample(w):
@@ -242,10 +275,11 @@ def systematic_resample(w):
     param: w, weights or log likely hood of weights, "list"
     return: a, the select index of particles, start from 0
     """
-    if w[0] < 0:
+    w = np.array(w)
+    # 1*n ndarray
+    if min(w) < 0:
         w = np.exp(w)
         # if weight are log likely hood, converted it into normal format
-    w = np.array(w)
     w = w / np.sum(w)
     n = len(w)
     u = np.random.rand() / n
@@ -293,9 +327,9 @@ def write_music_flag(performance, time_gen_libo):
 
 
 
-w_free = []
-perf_list =[]
 total_steps = FLAGS.num_steps
+off_steps = 2*total_steps
+pitch_z = 30
 num_particles = FLAGS.num_outputs
 args = {
     'temperature': FLAGS.temperature,
@@ -303,47 +337,63 @@ args = {
     'branch_factor': FLAGS.branch_factor,
     'steps_per_iteration': FLAGS.steps_per_iteration
 }
-
-
-primer_perfor = primer_performance_flag()
 generator = get_generator_flag()
+w_time = []
+
+perf_list_t =[]
 for i in range(num_particles):
-    w_i, performance_i = generate_specif_time(generator, primer_perfor, total_steps, args)
-    w_free.append(w_i)
-    perf_list.append(performance_i)
+    primer_perfor = primer_performance_flag()
+    performance_i = pull_back_weight(primer_perfor)
+    w_i = performance_i.generate_specif_time(generator, total_steps, args)
+    # w_i, performance_i = generate_specif_time(generator, primer_perfor, total_steps, args)
+    w_time.append(w_i)
+    perf_list_t.append(performance_i.performance)
 
-re_index = systematic_resample(w_free)
-re_per_list = [perf_list[i] for i in re_index]
+re_index_t = systematic_resample(w_time)
+re_per_list_t = [perf_list_t[i] for i in re_index_t]
 
 
-w_free = []
-perf_list =[]
+w_on = []
+perf_list_on =[]
 for i in range(num_particles):
-    w_i, performance_i = generate_specif_time(generator, primer_perfor, total_steps, args)
-    w_free.append(w_i)
-    perf_list.append(performance_i)
-re_index = systematic_resample(w_free)
-re_per_list = [perf_list[i] for i in re_index]
-# w_free = np.ones((re_index.shape))
-# w_free = w_free.tolist()
-# a = [1, 2, 3, 4]
+    performance_i = pull_back_weight(re_per_list_t[i])
+    w_i, performance_i = performance_i.generate_fixed_onpitch(generator, pitch_z, args)
+    # w_i, performance_i = performance_i.generate_unfixed_onpitch(self, generator, pitch_z, time_step_z, args)
+    w_on.append(w_i)
+    perf_list_on.append(performance_i)
+
+re_index_on = systematic_resample(w_on)
+re_per_list_on = [perf_list_on[i] for i in re_index_on]
 # b = np.array([3, 2, 1, 0])
 # ccc = [a[j] for j in b]
 
+w_time = []
+perf_list_t =[]
+for i in range(num_particles):
+    performance_i = pull_back_weight(re_per_list_t[i])
+    w_i = performance_i.generate_specif_time(generator, off_steps, args)
+    # w_i, performance_i = generate_specif_time(generator, primer_perfor, total_steps, args)
+    w_time.append(w_i)
+    perf_list_t.append(performance_i.performance)
+
+re_index_t = systematic_resample(w_time)
+re_per_list_t = [perf_list_t[i] for i in re_index_t]
+
+w_off = []
+perf_list_off =[]
+for i in range(num_particles):
+    performance_i = pull_back_weight(re_per_list_t[i])
+    w_i, performance_i = performance_i.generate_fixed_onpitch(generator, pitch_z, args)
+    # w_i, performance_i = performance_i.generate_unfixed_onpitch(self, generator, pitch_z, time_step_z, args)
+    w_off.append(w_i)
+    perf_list_off.append(performance_i)
+
+re_index_off = systematic_resample(w_off)
+re_per_list_off = [perf_list_off[i] for i in re_index_off]
 
 
-w_fixed = []
-perf_fix_list =[]
-for j in range(num_particles):
-    w_fixed_i, performance_after_fix = generate_fixed_sect(re_per_list[j], performance_i, args)
-    w_fixed.append(w_fixed_i)
-    perf_fix_list.append(performance_after_fix)
-
-re_fix_index = systematic_resample(w_fixed)
-re_fix_per_list = [perf_fix_list[j] for j in re_fix_index]
-
-time_gen_libo = float(re_fix_per_list[0].num_steps)/performance_lib.DEFAULT_STEPS_PER_SECOND
-write_music_flag(re_fix_per_list[0], time_gen_libo)
+time_gen_libo = float(re_per_list_off[0].num_steps)/performance_lib.DEFAULT_STEPS_PER_SECOND
+write_music_flag(re_per_list_off[0], time_gen_libo)
 # need for_loop
 
 # aaa = PerformanceEvent(event_type=1, event_value=100)

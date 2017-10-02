@@ -210,10 +210,11 @@ def systematic_resample(w):
     param: w, weights or log likely hood of weights, "list"
     return: a, the select index of particles, start from 0
     """
-    if w[0] < 0:
+    w = np.array(w)
+    # 1*n ndarray
+    if min(w) < 0:
         w = np.exp(w)
         # if weight are log likely hood, converted it into normal format
-    w = np.array(w)
     w = w / np.sum(w)
     n = len(w)
     u = np.random.rand() / n
