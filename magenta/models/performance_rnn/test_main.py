@@ -304,7 +304,8 @@ def write_music(performance, time_gen_libo):
     midi_filename = '%s_%s.mid' % (date_and_time, str(i + 1).zfill(digits))
     midi_path = os.path.join(output_dir, midi_filename)
     magenta.music.sequence_proto_to_midi_file(generated_sequence, midi_path)
-    tf.logging.info('Wrote %d MIDI files to %s', 1, output_dir)
+    print('Wrote %d MIDI files to %s' % (1, output_dir))
+    # tf.logging.info('Wrote %d MIDI files to %s' % (1, output_dir))
 
 
 w_free = []

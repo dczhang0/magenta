@@ -220,7 +220,7 @@ class PerformanceRnnSequenceGenerator(mm.BaseSequenceGenerator):
     return performance, softmax_Libo, indices_Libo
     # original, return generated_sequence
 
-  def generate_performance(self, performance, total_steps, args):
+  def generate_with_performance(self, performance, total_steps, args):
     #   generate with performance type of data
     if not performance:
         # Primer is empty; let's just start with silence.
