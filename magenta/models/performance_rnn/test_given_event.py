@@ -200,7 +200,7 @@ class pull_back_weight():
         MAX_SHIFT_STEPS = performance_lib.MAX_SHIFT_STEPS
         hotcoding = PerformanceOneHotEncoding()
         time_step_z = self.performance.num_steps
-        # whether time_step_z change with performance
+        # time_step_z don't change with performance, array also won't change
         while self.performance.num_steps <= time_step_z:
             # run across time or pitch
             total_steps = self.performance.__len__() + 1
@@ -230,6 +230,7 @@ class pull_back_weight():
     def generate_off_pitch(self, generator, pitch_z, time_on_z, args):
         """
         after arriving the specific time, turn off the specific note
+        in order,,,,,,pitch, start time............
         :param generator:
         :param self:
         :param pitch_z:
@@ -272,33 +273,146 @@ class pull_back_weight():
         return corrupt
 
 
-def systematic_resample(w):
-    """
-    resampling based on the weights: simply duplicate and delete particles
-    param: w, weights or log likely hood of weights, "list"
-    return: a, the select index of particles, start from 0
-    """
-    w = np.array(w)
-    # 1*n ndarray
-    if min(w) < 0:
-        w = np.exp(w)
-        # if weight are log likely hood, converted it into normal format
-    w = (w*1000) / (np.sum(w)*1000)
-    # * 1000, in case the elements of w are too small
-    print(w)
-    n = len(w)
-    u = np.random.rand() / n
-    s = w[0]
-    j = 0
-    re_index = np.zeros(n, dtype=int)
-    ninv = float(1) / n    # or 1.0/n , different form python 3,
-    for k in range(n):
-        while s < u:
-            j += 1
-            s += w[j]
-        re_index[k] = j
-        u += ninv
-    return re_index
+class resamping_with_given():
+
+    def __init__(self, num_particles, args, num_velocity_bins=0):
+        self.generator = get_generator_flag()
+        self.perf_list = []
+        self.w = []
+        self.steps_per_second = performance_lib.DEFAULT_STEPS_PER_SECOND
+        self.args = args
+        self.num_particles = num_particles
+        self.num_velocity_bins = num_velocity_bins
+
+
+    # def convert_input(self, t_s, p_z, t_e, b):
+    #     t_conb = [t_s, t_e]
+    #     t_conb_sort = sort(t_conb)
+
+    def res_start_step(self, t_s, p_z):
+
+        performance_0 = performance_lib.Performance(
+            steps_per_second=self.steps_per_second,
+            start_step=0,
+            num_velocity_bins=self.num_velocity_bins)
+        assert t_s[0] >= 0
+        # what if == 0-------------------------
+        total_steps = t_s[0] * self.steps_per_second
+        for i in range(self.num_particles):
+            # primer_perfor = primer_performance_flag()
+            primer_perfor = performance_0
+            pull_time = pull_back_weight(primer_perfor)
+            w_i = pull_time.generate_specif_time(self.generator, total_steps, self.args)
+            self.w.append(w_i)
+            self.perf_list.append(pull_time.performance)
+        # self.perf_list = [performance_0 for j in range(self.num_particles)]
+        self.systematic_resample()
+        # sample freely to start time
+
+        for i in range(num_particles):
+            primer_perfor = self.perf_list[i]
+            pull_pitch = pull_back_weight(primer_perfor)
+            w_i = pull_pitch.generate_unfixed_onpitch(self.generator, p_z[0], self.args)
+            self.w.append(w_i)
+            self.perf_list.append(pull_pitch.performance)
+        self.systematic_resample()
+        # sample freely to pitch, after arriving the start time
+
+
+    def res_with_bi(self, t_s, p_z, t_e, b):
+        # assert dimensions are the same
+        self.res_start_step(t_s, p_z)
+        j = 0
+
+        num_given_events = p_z.__len__()
+        for i_s in range(num_given_events-1):
+            if b[i_s]:
+                if t_s[i_s+1] == t_s[i_s]:
+                    for i in range(num_particles):
+                        performance_i = pull_back_weight(re_per_list_on[i])
+                        if b_i:
+                            w_i = performance_i.generate_unfixed_onpitch(generator, pitch_z_s, args)
+                        else:
+                            w_i = performance_i.generate_fixed_onpitch(generator, pitch_z_s, args)
+                        self.w.append(w_i)
+                        self.perf_list.append(performance_i.performance)
+                    self.systematic_resample()
+                    i_s = i_s + 1
+                else:
+
+                    while t_s[i_s+1] > t_e[j]:
+                        total_steps = t_e[j] * self.steps_per_second
+                        for i in range(self.num_particles):
+                            primer_perfor = self.perf_list[i]
+                            pull_time = pull_back_weight(primer_perfor)
+                            w_i = pull_time.generate_specif_time(self.generator, total_steps, self.args)
+                            self.w.append(w_i)
+                            self.perf_list.append(pull_time.performance)
+                        self.systematic_resample()
+                        j = j + 1
+                        if t_s[i_s+1] < t_e[j]:
+                            break
+                            # -------------------------------------------------
+                    total_steps = t_e[j] * self.steps_per_second
+                    for i in range(self.num_particles):
+                        primer_perfor = self.perf_list[i]
+                        pull_time = pull_back_weight(primer_perfor)
+                        w_i = pull_time.generate_specif_time(self.generator, total_steps, self.args)
+                        self.w.append(w_i)
+                        self.perf_list.append(pull_time.performance)
+                    # self.perf_list = [performance_0 for j in range(self.num_particles)]
+                    self.systematic_resample()
+
+
+
+
+
+
+
+
+
+
+    # def resampling_t(self):
+    #     total_steps = t_s[0] * self.steps_per_second
+    #     assert t_s[0] >= 0
+    #     if t_s[0] > 0:
+    #         for i in range(self.num_particles):
+    #             primer_perfor = self.perf_list[i]
+    #             performance_i = pull_back_weight(primer_perfor)
+    #             w_i = performance_i.generate_specif_time(self.generator, total_steps, self.args)
+    #             self.w.append(w_i)
+    #             self.perf_list.append(performance_i.performance)
+
+    def systematic_resample(self):
+        """
+        resampling based on the weights: simply duplicate and delete particles
+        param: w, weights or log likely hood of weights, "list"
+        return: a, the select index of particles, start from 0
+        """
+        w = np.array(self.w)
+        # 1*n ndarray
+        if min(w) < 0:
+            w = np.exp(w)
+            # if weight are log likely hood, converted it into normal format
+        w = (w*1000) / (np.sum(w)*1000)
+        # * 1000, in case the elements of w are too small
+        print(w)
+        n = len(w)
+        u = np.random.rand() / n
+        s = w[0]
+        j = 0
+        re_index = np.zeros(n, dtype=int)
+        ninv = float(1) / n    # or 1.0/n , different form python 3,
+        for k in range(n):
+            while s < u:
+                j += 1
+                s += w[j]
+            re_index[k] = j
+            u += ninv
+
+        self.perf_list = [self.perf_list[i] for i in re_index]
+        self.w = []
+        return re_index
 
 
 def write_music_flag(performance, time_gen_libo):
