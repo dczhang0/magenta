@@ -427,13 +427,14 @@ class resamping_with_given():
         return re_index
 
 
-    def write_music(self, output_dir, MAX_NOTE_DURATION_SECONDS,time_gen_libo=0):
+    def write_music(self, output_dir, MAX_NOTE_DURATION_SECONDS, time_gen_libo=0):
         """
         Make the generate request num_outputs times and save the output as midi
         files.
         give weight a small value if the duration is more than 5 seconds.!!!!!!!!!!!!!!!!!
         if some notes don't have corresponding turn off. !!!!!!!!!!!!!!!!!!!!!!!!!!!!
         :param output_dir: output directory
+        :param MAX_NOTE_DURATION_SECONDS
         :param time_gen_libo: specificed time
         :return:
         """
@@ -450,7 +451,7 @@ class resamping_with_given():
             tf.gfile.MakeDirs(output_dir)
 
         for i in range(num_outputs):
-            performance = self.per_list[i]
+            performance = self.perf_list[i]
             generated_sequence = performance.to_sequence(
                 max_note_duration=MAX_NOTE_DURATION_SECONDS)
             if time_gen_libo > 0:
