@@ -189,11 +189,12 @@ def weights_section(performance, softmax_Libo, total_steps):
             # len_performance + index_last_shift
             break
     value_last_shift = performance._events[index_last_shift].event_value
+    value_back_shift = np.int(total_steps - (performance.num_steps - value_last_shift))
     pmf_prun = softmax_Libo[index_last_shift][-MAX_SHIFT_STEPS:]
-    fd_Libo = pmf_prun[value_last_shift]
-    Fd_denomin = sum(pmf_prun[value_last_shift+1:])
+    fd_Libo = pmf_prun[value_back_shift]
+    Fd_denomin = sum(pmf_prun[value_back_shift+1:])
     # trimmed probability
-    loglik_pullback = np.log(fd_Libo / Fd_denomin)
+    loglik_pullback = np.log((fd_Libo*1000) / (Fd_denomin*1000))
     w = loglik_pullback
     # for j in range(len_performance):
     #     j = j+1
@@ -307,6 +308,38 @@ def write_music(performance, time_gen_libo):
     print('Wrote %d MIDI files to %s' % (1, output_dir))
     # tf.logging.info('Wrote %d MIDI files to %s' % (1, output_dir))
 
+
+# def write_music_flag(performance_list, time_gen_libo, num_outputs, output_dir):
+#     """
+#     Make the generate request num_outputs times and save the output as midi
+#     files.
+#     give weight a small value if the duration is more than 5 seconds.!!!!!!!!!!!!!!!!!
+#     if some notes don't have corresponding turn off. !!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#     :param performance:
+#     :return: midi file
+#     """
+#
+#     if not output_dir:
+#         tf.logging.fatal('--output_dir required')
+#         return
+#
+#     date_and_time = time.strftime('%Y-%m-%d_%H%M%S')
+#     digits = len(str(num_outputs))
+#     # time_gen_libo = float(FLAGS.num_steps)/performance_lib.DEFAULT_STEPS_PER_SECOND
+#
+#     if not tf.gfile.Exists(output_dir):
+#         tf.gfile.MakeDirs(output_dir)
+#
+#     for i in range(num_outputs):
+#         performance = performance_list[i]
+#         generated_sequence = performance.to_sequence(
+#             max_note_duration=MAX_NOTE_DURATION_SECONDS)
+#         assert (generated_sequence.total_time - time_gen_libo) <= 1e-5
+#         midi_filename = '%s_%s.mid' % (date_and_time, str(i + 1).zfill(digits))
+#         midi_path = os.path.join(output_dir, midi_filename)
+#         magenta.music.sequence_proto_to_midi_file(generated_sequence, midi_path)
+#         print('Wrote %d MIDI files to %s' % (1, output_dir))
+#         tf.logging.info('Wrote %d MIDI files to %s' % (1, output_dir))
 
 w_free = []
 perf_list =[]

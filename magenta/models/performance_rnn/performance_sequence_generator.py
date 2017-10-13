@@ -147,12 +147,12 @@ class PerformanceRnnSequenceGenerator(mm.BaseSequenceGenerator):
     #   Length of the sequence in quantized steps.
     # ???generate_start_step, start step
 
+    len_prim_seq_Libo = extracted_perfs[0]._events.__len__()
     if not performance:
       # Primer is empty; let's just start with silence.
       performance.set_length(min(performance_lib.MAX_SHIFT_STEPS, total_steps))
-      # performance.num_steps==100,,,(100,shift)???
+      len_prim_seq_Libo = 1
 
-    len_prim_seq_Libo = extracted_perfs[0]._events.__len__()
     softmax_Libo = np.zeros((len_prim_seq_Libo, 356)) - 2
     indices_Libo = np.zeros((len_prim_seq_Libo, 1), dtype=np.int) - 2
     # negative number indicates primer sequence
