@@ -187,29 +187,32 @@ def note_ascending_pitch(midi_notes):
   :param midi_notes: the data format as the former function
   :return: the filtered sequence
   """
-  midi_notes_asc_pitch = []
+  midi_notes_pitch_st = []
   st_same = 1
   for program, num_instrument, is_drum, midi_note in midi_notes:
-    midi_notes_asc_pitch.append((program, num_instrument, is_drum, midi_note))
-    last_note = midi_notes_asc_pitch[-2].midi_note
-    if midi_note.start == last_note.start:
-      st_same = st_same + 1
-    elif st_same > 1:
-      midi_notes_asc_pitch = ascending_pitch(midi_notes_asc_pitch, st_same)
-      st_same = 1
+    midi_notes_pitch_st.append((program, num_instrument, is_drum, midi_note))
+    if midi_notes_pitch_st.__len__() > 1:
+      last_note = midi_notes_pitch_st[-2][-1]
+      if midi_note.start == last_note.start:
+        st_same = st_same + 1
+      elif st_same > 1:
+        midi_notes_pitch_st = ascending_pitch(midi_notes_pitch_st, st_same)
+        st_same = 1
 
   end_same = 1
-  for program, num_instrument, is_drum, midi_note in midi_notes:
-    midi_notes_asc_pitch.append((program, num_instrument, is_drum, midi_note))
-    last_note = midi_notes_asc_pitch[-2].midi_note
-    assert midi_note.start >= last_note.start
-    if midi_note.end == last_note.end and midi_note.start == last_note.start:
-      end_same = end_same + 1
-    elif end_same > 1:
-      midi_notes_asc_pitch = ascending_pitch(midi_notes_asc_pitch, end_same)
-      end_same = 1
+  midi_notes_pitch_end = []
+  for program, num_instrument, is_drum, midi_note in midi_notes_pitch_st:
+    if midi_notes_pitch_end.__len__() > 1:
+      midi_notes_pitch_end.append((program, num_instrument, is_drum, midi_note))
+      last_note = midi_notes_pitch_end[-2][-1]
+      assert midi_note.start >= last_note.start
+      if midi_note.end == last_note.end and midi_note.start == last_note.start:
+        end_same = end_same + 1
+      elif end_same > 1:
+        midi_notes_pitch_end = ascending_pitch(midi_notes_pitch_end, end_same)
+        end_same = 1
 
-  return midi_notes_asc_pitch
+  return midi_notes_pitch_end
 
 
 def ascending_pitch(notes_to_filter, num_notes):
