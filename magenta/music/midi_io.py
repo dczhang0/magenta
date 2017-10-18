@@ -81,8 +81,9 @@ def midi_to_sequence_proto(midi_data):
       raise MIDIConversionError('Midi decoding error %s: %s' %
                                 (sys.exc_info()[0], sys.exc_info()[1]))
   # pylint: enable=bare-except
-
+  # midi.instruments[0].notes-----------------------------------------------
   sequence = music_pb2.NoteSequence()
+  print(midi.instruments.__len__())
 
   # Populate header.
   sequence.ticks_per_quarter = midi.resolution
@@ -129,10 +130,12 @@ def midi_to_sequence_proto(midi_data):
   midi_control_changes = []
   for num_instrument, midi_instrument in enumerate(midi.instruments):
     for midi_note in midi_instrument.notes:
+      # Libo:  midi_instrument.notes -----------------------------------------
       if not sequence.total_time or midi_note.end > sequence.total_time:
         sequence.total_time = midi_note.end
       midi_notes.append((midi_instrument.program, num_instrument,
                          midi_instrument.is_drum, midi_note))
+      # Libo:  midi_notes-----------------------------------------------------
     for midi_pitch_bend in midi_instrument.pitch_bends:
       midi_pitch_bends.append(
           (midi_instrument.program, num_instrument,
@@ -142,6 +145,7 @@ def midi_to_sequence_proto(midi_data):
           (midi_instrument.program, num_instrument,
            midi_instrument.is_drum, midi_control_change))
 
+  midi_notes = note_ascending_pitch(midi_notes)
   for program, instrument, is_drum, midi_note in midi_notes:
     note = sequence.notes.add()
     note.instrument = instrument
@@ -151,6 +155,7 @@ def midi_to_sequence_proto(midi_data):
     note.pitch = midi_note.pitch
     note.velocity = midi_note.velocity
     note.is_drum = is_drum
+  # sequence.notes
 
   for program, instrument, is_drum, midi_pitch_bend in midi_pitch_bends:
     pitch_bend = sequence.pitch_bends.add()
@@ -173,6 +178,53 @@ def midi_to_sequence_proto(midi_data):
   # note.numerator and note.denominator.
 
   return sequence
+
+
+def note_ascending_pitch(midi_notes):
+  """
+  find the notes events with the same starting time, rearrange the events with ascending pitch
+  find the events with the same starting time and ending time, rearrange the given events
+  :param midi_notes: the data format as the former function
+  :return: the filtered sequence
+  """
+  midi_notes_asc_pitch = []
+  st_same = 1
+  for program, num_instrument, is_drum, midi_note in midi_notes:
+    midi_notes_asc_pitch.append((program, num_instrument, is_drum, midi_note))
+    last_note = midi_notes_asc_pitch[-2].midi_note
+    if midi_note.start == last_note.start:
+      st_same = st_same + 1
+    elif st_same > 1:
+      midi_notes_asc_pitch = ascending_pitch(midi_notes_asc_pitch, st_same)
+      st_same = 1
+
+  end_same = 1
+  for program, num_instrument, is_drum, midi_note in midi_notes:
+    midi_notes_asc_pitch.append((program, num_instrument, is_drum, midi_note))
+    last_note = midi_notes_asc_pitch[-2].midi_note
+    assert midi_note.start >= last_note.start
+    if midi_note.end == last_note.end and midi_note.start == last_note.start:
+      end_same = end_same + 1
+    elif end_same > 1:
+      midi_notes_asc_pitch = ascending_pitch(midi_notes_asc_pitch, end_same)
+      end_same = 1
+
+  return midi_notes_asc_pitch
+
+
+def ascending_pitch(notes_to_filter, num_notes):
+  """
+  rearrange the events with ascending pitch
+  :param notes_to_filter: notes sequence to be rearranged
+  :param num_notes: number of notes to be rearranged
+  :return: filtered sequence
+  """
+  assert num_notes >= 2
+  notes_filtered = sorted(notes_to_filter[-num_notes:], key=lambda note: note[3].pitch, reverse=True)
+  notes_to_filter[-num_notes:] = notes_filtered
+  # for i in range(num_last_notes):
+  #   pitch_ser.append(notes_to_filter[-i-1].pitch)
+  return notes_to_filter
 
 
 def sequence_proto_to_pretty_midi(

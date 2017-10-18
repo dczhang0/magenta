@@ -482,30 +482,9 @@ ressampl.res_with_given_actions(T_z, P_z, E_z, B_z)
 ressampl.write_music(output_dir, MAX_NOTE_DURATION_SECONDS)
 
 
-
-
-# time_gen_libo = float(ressampl.perf_list[0].num_steps)/performance_lib.DEFAULT_STEPS_PER_SECOND
-# write_music_flag(ressampl.perf_list[0], time_gen_libo)
-# need for_loop
-
-# aaa = PerformanceEvent(event_type=1, event_value=100)
-# performance.append(aaa)
-#
-# hotcoding = PerformanceOneHotEncoding()
-# hotcoding.decode_event(100)
-
 # def extract_performances(
 #     quantized_sequence, start_step=0, min_events_discard=None,
 #     max_events_truncate=None, num_velocity_bins=0):
 #     if (quantized_sequence, steps_per_second).count(None) != 1:
 #       raise ValueError(
 #           'Must specify exactly one of quantized_sequence or steps_per_second')
-
-
-# generate_start_step = mm.quantize_to_step(start_time, steps_per_second, quantize_cutoff=0.0)
-# # If no track could be extracted, create an empty track that starts at the
-# # requested generate_start_step.
-# performance = performance_lib.Performance(
-#     steps_per_second=steps_per_second,
-#     start_step=generate_start_step,
-#     num_velocity_bins=num_velocity_bins)

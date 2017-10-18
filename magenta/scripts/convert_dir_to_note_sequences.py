@@ -110,6 +110,7 @@ def convert_midi(root_dir, sub_dir, full_file_path):
   try:
     sequence = midi_io.midi_to_sequence_proto(
         tf.gfile.FastGFile(full_file_path, 'rb').read())
+    print(1111)
   except midi_io.MIDIConversionError as e:
     tf.logging.warning(
         'Could not parse MIDI file %s. It will be skipped. Error was: %s',
@@ -119,6 +120,7 @@ def convert_midi(root_dir, sub_dir, full_file_path):
   sequence.filename = os.path.join(sub_dir, os.path.basename(full_file_path))
   sequence.id = note_sequence_io.generate_note_sequence_id(
       sequence.filename, sequence.collection_name, 'midi')
+  print(2222)
   tf.logging.info('Converted MIDI file %s.', full_file_path)
   return sequence
 
