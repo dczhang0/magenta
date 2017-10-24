@@ -34,11 +34,11 @@ tf.app.flags.DEFINE_string('run_dir', '/tmp/performance_rnn/logdir/run1',
                            'to the parent directory of `run_dir` to see all '
                            'your runs.')
 tf.app.flags.DEFINE_string('config', 'performance', 'The config to use')
-tf.app.flags.DEFINE_string('sequence_example_file', '',
+tf.app.flags.DEFINE_string('sequence_example_file', '/tmp/performance_rnn/sequence_examples/training_performances.tfrecord',
                            'Path to TFRecord file containing '
                            'tf.SequenceExample records for training or '
                            'evaluation.')
-tf.app.flags.DEFINE_integer('num_training_steps', 0,
+tf.app.flags.DEFINE_integer('num_training_steps', 100,
                             'The the number of global training steps your '
                             'model should take before exiting training. '
                             'Leave as 0 to run until terminated manually.')

@@ -34,7 +34,7 @@ CONFIG = 'performance'
 BUNDLE_PATH = "/home/zha231/Downloads/performance.mag"
 NUM_STEPS = 200
 PRIMER_MELODY = "[60, -2, 60, -2, 67, -2, 67, -2]"
-PRIMER_MELODY = "[]"
+# PRIMER_MELODY = "[]"
 PRIMER_PITCHES = ''
 PRIMER_MIDI = ''
 

@@ -24,6 +24,7 @@ from magenta.models.performance_rnn.performance_encoder_decoder import Performan
 # hotcoding.decode_event(355)
 import numpy as np
 import magenta.music as mm
+import copy
 # import test_files_xin
 
 
@@ -122,8 +123,67 @@ def primer_performance_flag():
 
     return performance
 
+# def performance_toconstrains
 
-class pull_back_weight():
+
+def extract_primer_performance(primer_pitches=None, primer_melody=None, primer_midi=None):
+        """
+        obtain the former performance format of data from path of midi file, sequence of primer pitches,
+        sequence of primer melodies
+        :param primer_pitches: A string representation of a Python list of pitches that will be used as
+                        a starting chord with a short duration.  with a quarter note duration
+        :param primer_melody: A string representation of a Python list of 'magenta.music.Melody' event values.
+                        For example: "[60, -2, 60, -2, 67, -2, 67, -2]". The primer melody will be played at '
+                        'a fixed tempo of 120 QPM with 4 steps per quarter note.
+                        (-2 = no event, -1 = note-off event, values 0 through 127 = note-on event for that MIDI pitch)
+                        'monophonic melodies'
+         :param primer_midi: The path to a MIDI file containing a polyphonic track
+        :return: performance sequence
+        # def spam(a, b=None, c=None):
+        #     print(b)
+        #     print(c)
+        # spam(100, c=0)
+        # spam(100)
+        """
+        steps_per_second = performance_lib.DEFAULT_STEPS_PER_SECOND
+        input_start_step = 0
+        num_velocity_bins = 0
+
+        primer_sequence = None
+        if primer_pitches:
+            primer_sequence = music_pb2.NoteSequence()
+            primer_sequence.ticks_per_quarter = constants.STANDARD_PPQ
+            for pitch in ast.literal_eval(primer_pitches):
+                note = primer_sequence.notes.add()
+                note.start_time = 0
+                note.end_time = 60.0 / magenta.music.DEFAULT_QUARTERS_PER_MINUTE
+                # --------------------????????????????????-------------------
+                note.pitch = pitch
+                note.velocity = 100
+                primer_sequence.total_time = note.end_time
+        elif primer_melody:
+            primer_melody = magenta.music.Melody(ast.literal_eval(primer_melody))
+            primer_sequence = primer_melody.to_sequence()
+            # melodies_lib: Converts the Melody to NoteSequence proto.
+        elif primer_midi:
+            primer_midi = os.path.expanduser(primer_midi)
+            primer_sequence = magenta.music.midi_file_to_sequence_proto(primer_midi)
+        else:
+            tf.logging.warning(
+                'No priming sequence specified. Defaulting to empty sequence.')
+            primer_sequence = music_pb2.NoteSequence()
+            primer_sequence.ticks_per_quarter = constants.STANDARD_PPQ
+
+        quantized_primer_sequence = mm.quantize_note_sequence_absolute(primer_sequence, steps_per_second)
+        extracted_perfs, _ = performance_lib.extract_performances(
+            quantized_primer_sequence, start_step=input_start_step,
+            num_velocity_bins=num_velocity_bins)
+        performance = extracted_perfs[0]
+        # might be empty if no input.
+
+        return performance
+
+class pull_back_weight(object):
 
     """
     performance_lib.Performance
@@ -181,8 +241,9 @@ class pull_back_weight():
             total_steps, self.performance, **args)
         fd = softmax_vec[-1][index_shift]
         shift_given = PerformanceEvent(event_type=3, event_value=np.int(shift_step_z))
+        self.performance._events.pop()
         self.performance.append(shift_given)
-        w = np.log(fd)
+        w = np.log(fd*1000) - np.log(1000)
 
         return w
 
@@ -201,6 +262,7 @@ class pull_back_weight():
             total_steps, self.performance, **args)
         fd = softmax_vec[-1][pitch_z]
         pitch_given = PerformanceEvent(event_type=1, event_value=np.int(pitch_z))
+        self.performance._events.pop()
         self.performance.append(pitch_given)
         w = np.log(fd)
 
@@ -272,6 +334,7 @@ class pull_back_weight():
                 total_steps, self.performance, **args)
             fd = softmax_vec[-1][pitch_z]
             # just one matrix
+            self.performance._events.pop()
             pitch_given = PerformanceEvent(event_type=2, event_value=np.int(pitch_z))
             self.performance.append(pitch_given)
             w = np.log(fd)
@@ -297,7 +360,7 @@ class pull_back_weight():
         return corrupt
 
 
-class resamping_with_given():
+class resamping_with_given(object):
     """
     resampling with given inputs
     inputs are: T, P, E, B
@@ -334,7 +397,7 @@ class resamping_with_given():
         self.systematic_resample()
         # sample freely to start time
 
-        for i in range(num_particles):
+        for i in range(self.num_particles):
             primer_perfor = self.perf_list[i]
             pull_pitch = pull_back_weight(primer_perfor)
             # if E_z[0]:
@@ -472,6 +535,27 @@ args = {
     'steps_per_iteration': FLAGS.steps_per_iteration
 }
 output_dir = os.path.expanduser(FLAGS.output_dir)
+primer_melody = FLAGS.primer_melody
+primer_performance = extract_primer_performance(primer_melody=primer_melody)
+length = primer_performance.__len__()
+t = []
+p = []
+a = []
+b = []
+performance = copy.deepcopy(primer_performance)
+for i in range(length):
+    if performance._events[-1].event_type != 3:
+        t.append(performance.num_steps)
+        a.append(performance._events[-1].event_type)
+        p.append(performance._events[-1].event_value)
+    performance._events.pop()
+t = [t[-j-1] for j in range(len(t))]
+a = [a[-j-1] for j in range(len(t))]
+p = [p[-j-1] for j in range(len(t))]
+zzz = 2 - np.array(a)
+a = np.list(zzz)
+
+primer_sequence = primer_performance_flag()
 generator = get_generator_flag()
 T_z = [1.5, 2, 3, 4]
 P_z = [50, 50, 40, 40]

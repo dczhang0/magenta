@@ -35,10 +35,12 @@ from magenta.pipelines import pipeline
 from magenta.pipelines import pipelines_common
 from magenta.protobuf import music_pb2
 
+CONFIG = 'performance'
+
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('input', None,
+tf.app.flags.DEFINE_string('input', '/tmp/notesequences.tfrecord',
                            'TFRecord to read NoteSequence protos from.')
-tf.app.flags.DEFINE_string('output_dir', None,
+tf.app.flags.DEFINE_string('output_dir', '/tmp/performance_rnn/sequence_examples',
                            'Directory to write training and eval TFRecord '
                            'files. The TFRecord files are populated with '
                            'SequenceExample protos.')

@@ -145,7 +145,7 @@ def midi_to_sequence_proto(midi_data):
           (midi_instrument.program, num_instrument,
            midi_instrument.is_drum, midi_control_change))
 
-  midi_notes = note_ascending_pitch(midi_notes)
+  # midi_notes = note_ascending_pitch(midi_notes)
   for program, instrument, is_drum, midi_note in midi_notes:
     note = sequence.notes.add()
     note.instrument = instrument
