@@ -112,14 +112,15 @@ def build_graph(mode, config, sequence_example_file_paths=None):
     outputs_flat = magenta.common.flatten_maybe_padded_sequences(
         outputs, lengths)
     logits_flat = tf.contrib.layers.linear(outputs_flat, num_classes)
-
+    # probability vector or matrix
+    print(logits_flat)
     if mode == 'train' or mode == 'eval':
       labels_flat = magenta.common.flatten_maybe_padded_sequences(
           labels, lengths)
 
       softmax_cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
           labels=labels_flat, logits=logits_flat)
-
+      # loss function
       predictions_flat = tf.argmax(logits_flat, axis=1)
       correct_predictions = tf.to_float(
           tf.equal(labels_flat, predictions_flat))
@@ -189,3 +190,16 @@ def build_graph(mode, config, sequence_example_file_paths=None):
         tf.add_to_collection('final_state', state)
 
   return graph
+
+import numpy as np
+def mask_matrix(pitch_max, shift_max):
+    # probability vector: [pitch off, pitch on, shift]
+    # pitch_max = len([pitch off pitch on])
+    mask_mat = np.zeros([pitch_max+shift_max, pitch_max+shift_max], dtype='float')
+    mask_mat[0:shift_max, pitch_max:] = float('inf')
+    # np.eye(6,M=None, k=1, dtype='float'), mask_mat.T, mask_mat.tranpose, mask_mat.swapaxes(1,0)
+
+    i = -1
+    for j in range(pitch_max):
+        mask_mat[i:, j] = float('inf')
+        i = i - 1

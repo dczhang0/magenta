@@ -306,11 +306,17 @@ class Performance(events_lib.EventSequence):
     current_velocity_bin = 0
     performance_events = []
 
+    if len(note_events) > 0:
+      note_events = Performance.actions_ascending_pitch(sorted_notes, note_events)
+    else:
+      print('i am not okay')
+
     for step, idx, is_offset in note_events:
       if step > current_step:
         # Shift time forward from the current step to this event.
         while step > current_step + MAX_SHIFT_STEPS:
           # We need to move further than the maximum shift size.
+          print('shift steps %s >100' % (step - current_step))
           performance_events.append(
               PerformanceEvent(event_type=PerformanceEvent.TIME_SHIFT,
                                event_value=MAX_SHIFT_STEPS))
@@ -338,6 +344,66 @@ class Performance(events_lib.EventSequence):
                            event_value=sorted_notes[idx].pitch))
 
     return performance_events
+
+  @staticmethod
+  def actions_ascending_pitch(sorted_notes, note_events):
+    """
+    find the actions at the same time step, rearrange the events with serial order:
+    first on then off, ascending pitch
+    :param sorted_notes: sequence of notes
+    :param note_events: sequence of actions
+    :return: filtered sequence
+    """
+    sorted_actions = []
+    st_same = 1
+    # print('size of sorted_actions %s' % len(sorted_actions))
+    sorted_actions.append(note_events[0])
+    # sorted_actions.append((note_events[0], sorted_notes[note_events[0][1]].pitch))
+    for step, idx, is_offset in note_events[1:]:
+      sorted_actions.append((step, idx, is_offset))
+      last_step = sorted_actions[-2][0]
+      if last_step == step:
+        st_same = st_same + 1
+      elif st_same > 1:
+        sorted_actions.pop()
+        sorted_actions = Performance.ascending_pitch(sorted_actions, st_same, sorted_notes)
+        sorted_actions.append((step, idx, is_offset))
+        st_same = 1
+      # print(st_same)
+
+    return sorted_actions
+
+
+  @staticmethod
+  def ascending_pitch(sorted_actions, st_same, sorted_notes):
+    """
+    rearrange the actions with ascending pitch
+    :param sorted_actions: actions sequence to be rearranged
+    :param st_same:  number of actions to be rearranged, from the reverse direction
+    :param sorted_notes: sequence of notes
+    :return: filtered sequence of actions
+    """
+    actions_on_p = []
+    actions_off_p = []
+    for i in range(st_same):
+      pitch = sorted_notes[sorted_actions[-1][1]].pitch
+      # sorted_actions[-1][1]: -1 indicate the last element in list, [1] indicate the idx
+      if not sorted_actions[-1][2]:
+        actions_on_p.append((sorted_actions[-1], pitch))
+      else:
+        actions_off_p.append((sorted_actions[-1], pitch))
+      sorted_actions.pop()
+
+    actions_on_p = sorted(actions_on_p, key=lambda x: x[1])
+    actions_off_p = sorted(actions_off_p, key=lambda x: x[1])
+    actions_on = [actions_on_p[i][0] for i in range(len(actions_on_p))]
+    actions_off = [actions_off_p[i][0] for i in range(len(actions_off_p))]
+    sorted_actions = sorted_actions + actions_on + actions_off
+    # [1, 2, 3] + [1, 2, 3]
+    # for i in range(num_last_notes):
+    #   pitch_ser.append(notes_to_filter[-i-1].pitch)
+    return sorted_actions
+
 
   def to_sequence(self,
                   velocity=100,

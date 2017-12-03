@@ -34,6 +34,7 @@ from magenta.pipelines import note_sequence_pipelines
 from magenta.pipelines import pipeline
 from magenta.pipelines import pipelines_common
 from magenta.protobuf import music_pb2
+import copy
 
 CONFIG = 'performance'
 
@@ -72,7 +73,22 @@ class PerformanceExtractor(pipeline.Pipeline):
         max_events_truncate=self._max_events,
         num_velocity_bins=self._num_velocity_bins)
     self._set_stats(stats)
+    # assert len(performances) == 1
+    # perfor = performances[0]
     return performances
+
+
+  # def note_order_performance(self, performance):
+  #     performance_0 = performance_lib.Performance(
+  #         steps_per_second=performance_lib.DEFAULT_STEPS_PER_SECOND,
+  #         start_step=0,
+  #         num_velocity_bins=self._num_velocity_bins)
+  #     dup_performance = copy.deepcopy(performance)
+  #     leng = len(performance._events)
+  #     for i in range(leng):
+  #         if performance._events[i].event_type == 1:
+  #             i = i + 1
+  #     # return performance
 
 
 def get_pipeline(config, min_events, max_events, eval_ratio):

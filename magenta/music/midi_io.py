@@ -224,7 +224,8 @@ def ascending_pitch(notes_to_filter, num_notes):
   """
   assert num_notes >= 2
   notes_filtered = sorted(notes_to_filter[-num_notes:], key=lambda note: note[3].pitch, reverse=True)
-  notes_to_filter[-num_notes:] = notes_filtered
+  notes_to_filter = notes_to_filter[0:-num_notes] + notes_filtered
+  # notes_to_filter[-num_notes:] = notes_filtered
   # for i in range(num_last_notes):
   #   pitch_ser.append(notes_to_filter[-i-1].pitch)
   return notes_to_filter

@@ -35,6 +35,7 @@ class Constraints(object):
         self.e = a
         self.b = b
 
+
     @classmethod
     def constraints_from_performance(cls, primer_performance):
         """
@@ -54,20 +55,36 @@ class Constraints(object):
                 a.append(performance._events[-1].event_type)
                 p.append(performance._events[-1].event_value)
             performance._events.pop()
-        t = [t[-j - 1] for j in range(len(t))]
-        a = [a[-j - 1] for j in range(len(t))]
-        p = [p[-j - 1] for j in range(len(t))]
+        # t = [t[-j - 1] for j in range(len(t))]
+        # a = [a[-j - 1] for j in range(len(t))]
+        # p = [p[-j - 1] for j in range(len(t))]
+        t.reverse()
+        a.reverse()
+        p.reverse()
 
         # convert to 1 on, 0 off.
         zzz = 2 - np.array(a)
         a = np.list(zzz)
+        constr = cls(t, p, a, b)
 
-        return Constraints(t, p, a, b)
+        return constr
 
 
-    def valid(self, sequence):
+    @staticmethod
+    def valid(sequence):
         return True or False
 
+# class A(object):
+#     def foo(self,x):
+#         print "executing foo(%s,%s)"%(self,x)
+#
+#     @classmethod
+#     def class_foo(cls,x):
+#         print "executing class_foo(%s,%s)"%(cls,x)
+#
+#     @staticmethod
+#     def static_foo(x):
+#         print "executing static_foo(%s)"%x
 
 class weight_generate(object):
     """
@@ -386,64 +403,6 @@ class sampler_given_actions(object):
         print('Wrote %d MIDI files to %s' % (num_outputs, output_dir))
         # tf.logging.info('Wrote %d MIDI files to %s' % (1, output_dir))
 
-
-def extract_primer_performance(primer_pitches=None, primer_melody=None, primer_midi=None):
-        """
-        obtain the former performance format of data from path of midi file, sequence of primer pitches,
-        sequence of primer melodies
-        :param primer_pitches: A string representation of a Python list of pitches that will be used as
-                        a starting chord with a short duration.  with a quarter note duration
-        :param primer_melody: A string representation of a Python list of 'magenta.music.Melody' event values.
-                        For example: "[60, -2, 60, -2, 67, -2, 67, -2]". The primer melody will be played at '
-                        'a fixed tempo of 120 QPM with 4 steps per quarter note.
-                        (-2 = no event, -1 = note-off event, values 0 through 127 = note-on event for that MIDI pitch)
-                        'monophonic melodies'
-         :param primer_midi: The path to a MIDI file containing a polyphonic track
-        :return: performance sequence
-        # def spam(a, b=None, c=None):
-        #     print(b)
-        #     print(c)
-        # spam(100, c=0)
-        # spam(100)
-        """
-        steps_per_second = performance_lib.DEFAULT_STEPS_PER_SECOND
-        input_start_step = 0
-        num_velocity_bins = 0
-
-        primer_sequence = None
-        if primer_pitches:
-            primer_sequence = music_pb2.NoteSequence()
-            primer_sequence.ticks_per_quarter = constants.STANDARD_PPQ
-            for pitch in ast.literal_eval(primer_pitches):
-                note = primer_sequence.notes.add()
-                note.start_time = 0
-                note.end_time = 60.0 / magenta.music.DEFAULT_QUARTERS_PER_MINUTE
-                # --------------------????????????????????-------------------
-                note.pitch = pitch
-                note.velocity = 100
-                primer_sequence.total_time = note.end_time
-        elif primer_melody:
-            primer_melody = magenta.music.Melody(ast.literal_eval(primer_melody))
-            primer_sequence = primer_melody.to_sequence()
-            # melodies_lib: Converts the Melody to NoteSequence proto.
-        elif primer_midi:
-            primer_midi = os.path.expanduser(primer_midi)
-            primer_sequence = magenta.music.midi_file_to_sequence_proto(primer_midi)
-        else:
-            tf.logging.warning(
-                'No priming sequence specified. Defaulting to empty sequence.')
-            primer_sequence = music_pb2.NoteSequence()
-            primer_sequence.ticks_per_quarter = constants.STANDARD_PPQ
-
-        quantized_primer_sequence = mm.quantize_note_sequence_absolute(primer_sequence, steps_per_second)
-        extracted_perfs, _ = performance_lib.extract_performances(
-            quantized_primer_sequence, start_step=input_start_step,
-            num_velocity_bins=num_velocity_bins)
-        performance = extracted_perfs[0]
-        # might be empty if no input.
-
-        return performance
-
 # class PRNN(object):
 #
 #     def __init__(self, model, session):
@@ -520,52 +479,129 @@ def extract_primer_performance(primer_pitches=None, primer_melody=None, primer_m
 #     PRNN.test_primer_sequence(primer, prnn)
 #
 
-def get_checkpoint():
-  """Get the training dir or checkpoint path to be used by the model."""
-  if FLAGS.run_dir and FLAGS.bundle_file and not FLAGS.save_generator_bundle:
-    raise magenta.music.SequenceGeneratorException(
-        'Cannot specify both bundle_file and run_dir')
-  if FLAGS.run_dir:
-    train_dir = os.path.join(os.path.expanduser(FLAGS.run_dir), 'train')
-    return train_dir
-  else:
-    return None
+class generator_bundle_args(object):
+
+    def __init__(self, bundle_file, save_generator_bundle=False, run_dir=None):
+        self.save_generator_bundle = save_generator_bundle
+        self.bundle_file = bundle_file
+        self.run_dir = run_dir
+        self.bundle = self.get_bundle()
+        self.checkpoint = self.get_checkpoint()
 
 
-def get_bundle():
-  """Returns a generator_pb2.GeneratorBundle object based read from bundle_file.
-
-  Returns:
-    Either a generator_pb2.GeneratorBundle or None if the bundle_file flag is
-    not set or the save_generator_bundle flag is set.
-  """
-  if FLAGS.save_generator_bundle:
-    return None
-  if FLAGS.bundle_file is None:
-    return None
-  bundle_file = os.path.expanduser(FLAGS.bundle_file)
-  return magenta.music.read_bundle_file(bundle_file)
+    def get_checkpoint(self):
+      """Get the training dir or checkpoint path to be used by the model."""
+      if self.run_dir and self.bundle_file and not self.save_generator_bundle:
+        raise magenta.music.SequenceGeneratorException(
+            'Cannot specify both bundle_file and run_dir')
+      if self.run_dir:
+        train_dir = os.path.join(os.path.expanduser(self.run_dir), 'train')
+      else:
+        train_dir = None
+      return train_dir
 
 
-def get_generator_flag():
-    bundle = get_bundle()
+    def get_bundle(self):
+      """Returns a generator_pb2.GeneratorBundle object based read from bundle_file.
 
-    config_id = bundle.generator_details.id if bundle else FLAGS.config
-    # config_id = np.unicode(FLAGS.config)
-    config = performance_model.default_configs[config_id]
-    config.hparams.parse(FLAGS.hparams)
-    # Having too large of a batch size will slow generation down unnecessarily.
-    config.hparams.batch_size = min(
-        config.hparams.batch_size, FLAGS.beam_size * FLAGS.branch_factor)
+      Returns:
+        Either a generator_pb2.GeneratorBundle or None if the bundle_file flag is
+        not set or the save_generator_bundle flag is set.
+      """
+      if self.save_generator_bundle:
+        return None
+      if self.bundle_file is None:
+        return None
+      bundle_file = os.path.expanduser(self.bundle_file)
+      bundle = magenta.music.read_bundle_file(bundle_file)
+      return bundle
 
-    generator = performance_sequence_generator.PerformanceRnnSequenceGenerator(
-        model=performance_model.PerformanceRnnModel(config),
-        details=config.details,
-        steps_per_second=config.steps_per_second,
-        num_velocity_bins=config.num_velocity_bins,
-        checkpoint=get_checkpoint(),
-        bundle=bundle)
-    return generator
+
+    def get_generator(self, config_name, beam_size=1, branch_factor=1, hparams=''):
+        """
+        config, hparams='', beam_size=1, branch_factor=1
+        :param config:
+        :param hparams:
+        :param beam_size:
+        :param branch_factor:
+        :return:
+        """
+        bundle = self.bundle
+        config_id = bundle.generator_details.id if bundle else config_name
+        # bundle.generator_details.id: the name of file in the dictionary
+        # config_id = np.unicode(FLAGS.config)
+        config = performance_model.default_configs[config_id]
+        config.hparams.parse(hparams)
+        # Having too large of a batch size will slow generation down unnecessarily.
+        config.hparams.batch_size = min(
+            config.hparams.batch_size, beam_size * branch_factor)
+
+        generator = performance_sequence_generator.PerformanceRnnSequenceGenerator(
+            model=performance_model.PerformanceRnnModel(config),
+            details=config.details,
+            steps_per_second=config.steps_per_second,
+            num_velocity_bins=config.num_velocity_bins,
+            checkpoint=self.checkpoint,
+            bundle=bundle)
+        return generator
+
+
+def extract_primer_performance(primer_pitches=None, primer_melody=None, primer_midi=None):
+    """
+    obtain the former performance format of data from path of midi file, sequence of primer pitches,
+    sequence of primer melodies
+    :param primer_pitches: A string representation of a Python list of pitches that will be used as
+                    a starting chord with a short duration.  with a quarter note duration
+    :param primer_melody: A string representation of a Python list of 'magenta.music.Melody' event values.
+                    For example: "[60, -2, 60, -2, 67, -2, 67, -2]". The primer melody will be played at '
+                    'a fixed tempo of 120 QPM with 4 steps per quarter note.
+                    (-2 = no event, -1 = note-off event, values 0 through 127 = note-on event for that MIDI pitch)
+                    'monophonic melodies'
+     :param primer_midi: The path to a MIDI file containing a polyphonic track
+    :return: performance sequence
+    # def spam(a, b=None, c=None):
+    #     print(b)
+    #     print(c)
+    # spam(100, c=0)
+    # spam(100)
+    """
+    steps_per_second = performance_lib.DEFAULT_STEPS_PER_SECOND
+    input_start_step = 0
+    num_velocity_bins = 0
+
+    primer_sequence = None
+    if primer_pitches:
+        primer_sequence = music_pb2.NoteSequence()
+        primer_sequence.ticks_per_quarter = constants.STANDARD_PPQ
+        for pitch in ast.literal_eval(primer_pitches):
+            note = primer_sequence.notes.add()
+            note.start_time = 0
+            note.end_time = 60.0 / magenta.music.DEFAULT_QUARTERS_PER_MINUTE
+            # --------------------????????????????????-------------------
+            note.pitch = pitch
+            note.velocity = 100
+            primer_sequence.total_time = note.end_time
+    elif primer_melody:
+        primer_melody = magenta.music.Melody(ast.literal_eval(primer_melody))
+        primer_sequence = primer_melody.to_sequence()
+        # melodies_lib: Converts the Melody to NoteSequence proto.
+    elif primer_midi:
+        primer_midi = os.path.expanduser(primer_midi)
+        primer_sequence = magenta.music.midi_file_to_sequence_proto(primer_midi)
+    else:
+        tf.logging.warning(
+            'No priming sequence specified. Defaulting to empty sequence.')
+        primer_sequence = music_pb2.NoteSequence()
+        primer_sequence.ticks_per_quarter = constants.STANDARD_PPQ
+
+    quantized_primer_sequence = mm.quantize_note_sequence_absolute(primer_sequence, steps_per_second)
+    extracted_perfs, _ = performance_lib.extract_performances(
+        quantized_primer_sequence, start_step=input_start_step,
+        num_velocity_bins=num_velocity_bins)
+    performance = extracted_perfs[0]
+    # might be empty if no input.
+
+    return performance
 
 
 def main(unused_argv):
@@ -573,6 +609,12 @@ def main(unused_argv):
     :param unused_argv:
     :return:
     """
+    # a = A()
+    # if clause
+    # # usage of ndarray
+    primer_melody = FLAGS.primer_melody
+    config = FLAGS.config
+    bundle_file = FLAGS.bundle_file
     MAX_NOTE_DURATION_SECONDS = 5.0
     num_particles = FLAGS.num_outputs
     args = {
@@ -582,8 +624,8 @@ def main(unused_argv):
         'steps_per_iteration': FLAGS.steps_per_iteration
     }
     output_dir = os.path.expanduser(FLAGS.output_dir)
-    generator = get_generator_flag()
-    primer_melody = FLAGS.primer_melody
+    aaa = generator_bundle_args(bundle_file=bundle_file)
+    generator = aaa.get_generator(config_name=config)
     primer_performance = extract_primer_performance(primer_melody=primer_melody)
     T_z = [1.5, 2, 3, 4]
     P_z = [50, 50, 40, 40]
