@@ -369,7 +369,6 @@ def run_pipeline_serial(pipeline,
   stats = []
   for input_ in input_iterator:
     total_inputs += 1
-    print(total_inputs)
     for name, outputs in _guarantee_dict(pipeline.transform(input_),
                                          output_names[0]).items():
       for output in outputs:

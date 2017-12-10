@@ -16,8 +16,26 @@
 # internal imports
 import tensorflow as tf
 import magenta
-
 from tensorflow.python.util import nest as tf_nest
+
+import numpy as np
+from magenta.models.performance_rnn import performance_lib
+
+def mask_matrix(pitch_max, shift_max):
+    # probability vector: [pitch off, pitch on, shift]
+    # pitch_max = len([pitch off pitch on])
+    mask_mat = np.zeros([pitch_max+shift_max, pitch_max+shift_max], dtype='float')
+    mask_mat[0:shift_max, pitch_max:] = -float('inf')
+    # np.eye(6,M=None, k=1, dtype='float'), mask_mat.T, mask_mat.tranpose, mask_mat.swapaxes(1,0)
+
+    i = -1
+    for j in range(pitch_max):
+        mask_mat[i:, j] = -float('inf')
+        i = i - 1
+    mask_mat = mask_mat.T
+    return mask_mat
+
+MASK_MATRIX = mask_matrix(256, performance_lib.MAX_SHIFT_STEPS)
 
 
 def make_rnn_cell(rnn_layer_sizes,
@@ -113,7 +131,24 @@ def build_graph(mode, config, sequence_example_file_paths=None):
         outputs, lengths)
     logits_flat = tf.contrib.layers.linear(outputs_flat, num_classes)
     # probability vector or matrix
+
     print(logits_flat)
+
+    inputs_flat = magenta.common.flatten_maybe_padded_sequences(
+        inputs, lengths)
+    inputs_label_flat = tf.argmax(inputs_flat, axis=1)
+    flat_pre = tf.reshape(inputs_label_flat, [-1, 1])
+    m = np.zeros([356, 356])
+    # m = MASK_MATRIX
+    M = tf.constant(m, dtype=tf.float32)
+    mask = tf.gather_nd(M, flat_pre)
+    # mask = M[:, inputs_label_flat]
+    # mask = [M[inputs_label_flat[0], :]]
+    # for i in range(inputs_label_flat.shape[0] - 1):
+    #     tt_i = [M[inputs_label_flat[i + 1], :]]
+    #     mask = tf.concat([mask, tt_i], 0)
+    logits_flat = logits_flat + mask
+
     if mode == 'train' or mode == 'eval':
       labels_flat = magenta.common.flatten_maybe_padded_sequences(
           labels, lengths)
@@ -190,16 +225,3 @@ def build_graph(mode, config, sequence_example_file_paths=None):
         tf.add_to_collection('final_state', state)
 
   return graph
-
-import numpy as np
-def mask_matrix(pitch_max, shift_max):
-    # probability vector: [pitch off, pitch on, shift]
-    # pitch_max = len([pitch off pitch on])
-    mask_mat = np.zeros([pitch_max+shift_max, pitch_max+shift_max], dtype='float')
-    mask_mat[0:shift_max, pitch_max:] = float('inf')
-    # np.eye(6,M=None, k=1, dtype='float'), mask_mat.T, mask_mat.tranpose, mask_mat.swapaxes(1,0)
-
-    i = -1
-    for j in range(pitch_max):
-        mask_mat[i:, j] = float('inf')
-        i = i - 1

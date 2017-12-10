@@ -41,7 +41,7 @@ CONFIG = 'performance'
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('input', '/tmp/notesequences.tfrecord',
                            'TFRecord to read NoteSequence protos from.')
-tf.app.flags.DEFINE_string('output_dir', '/tmp/performance_rnn/sequence_examples',
+tf.app.flags.DEFINE_string('output_dir', '/home/zha231/Downloads/performance_rnn/sequence_examples',
                            'Directory to write training and eval TFRecord '
                            'files. The TFRecord files are populated with '
                            'SequenceExample protos.')
@@ -72,7 +72,10 @@ class PerformanceExtractor(pipeline.Pipeline):
         min_events_discard=self._min_events,
         max_events_truncate=self._max_events,
         num_velocity_bins=self._num_velocity_bins)
+    # print(1)
+    # print(quantized_sequence.id)
     self._set_stats(stats)
+    # print(performances.end_time)
     # assert len(performances) == 1
     # perfor = performances[0]
     return performances

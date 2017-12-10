@@ -308,19 +308,27 @@ class Performance(events_lib.EventSequence):
 
     if len(note_events) > 0:
       note_events = Performance.actions_ascending_pitch(sorted_notes, note_events)
-    else:
-      print('i am not okay')
-
+      # print('i am okay')
+    # else:
+    #   print('i am not okay')
+    i = 0
     for step, idx, is_offset in note_events:
       if step > current_step:
         # Shift time forward from the current step to this event.
+        if step - current_step > 1000:
+          i = i + 1
+          print('shift steps %s >100' % (step - current_step))
+          print(i)
+          return performance_events
+
         while step > current_step + MAX_SHIFT_STEPS:
           # We need to move further than the maximum shift size.
-          print('shift steps %s >100' % (step - current_step))
+          # print('shift steps %s >100' % (step - current_step))
           performance_events.append(
               PerformanceEvent(event_type=PerformanceEvent.TIME_SHIFT,
                                event_value=MAX_SHIFT_STEPS))
           current_step += MAX_SHIFT_STEPS
+
         performance_events.append(
             PerformanceEvent(event_type=PerformanceEvent.TIME_SHIFT,
                              event_value=int(step - current_step)))
