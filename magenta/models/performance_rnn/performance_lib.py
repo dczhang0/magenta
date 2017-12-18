@@ -37,8 +37,13 @@ MAX_NUM_VELOCITY_BINS = MAX_MIDI_VELOCITY - MIN_MIDI_VELOCITY + 1
 STANDARD_PPQ = constants.STANDARD_PPQ
 
 DEFAULT_STEPS_PER_SECOND = 100
-MAX_SHIFT_STEPS = 100
-
+MAX_SHIFT_STEPS = 1000
+# MAX_SHIFT_STEPS = 100
+# max_shift equal to "max_note_duration" in "to sequence", which is the maximum note duration in generation.
+# Libo-------------------------------------maximum shift step------------------------------------------
+MAX_EVENTS = 512
+# from magenta.models.performance_rnn.performance_rnn_create_dataset import MAX_EVENTS
+# Libo----------trivial-------to reduce memory use, especially when the performance is too long--------------
 
 class PerformanceEvent(object):
   """Class for storing events in a performance."""
@@ -311,28 +316,33 @@ class Performance(events_lib.EventSequence):
       # print('i am okay')
     # else:
     #   print('i am not okay')
-    i = 0
+    # Libo---------------------for order of pitch-------------------add----------
     for step, idx, is_offset in note_events:
-      if step > current_step:
+      # if step > current_step:
+      #   # Shift time forward from the current step to this event.
+      #   while step > current_step + MAX_SHIFT_STEPS:
+      #     # We need to move further than the maximum shift size.
+      #     performance_events.append(
+      #         PerformanceEvent(event_type=PerformanceEvent.TIME_SHIFT,
+      #                          event_value=MAX_SHIFT_STEPS))
+      #     current_step += MAX_SHIFT_STEPS
+      #   performance_events.append(
+      #       PerformanceEvent(event_type=PerformanceEvent.TIME_SHIFT,
+      #                        event_value=int(step - current_step)))
+      #   current_step = step
+
+      num_event_step = len(performance_events)
+      shift_step = step - current_step
+      if shift_step > MAX_SHIFT_STEPS or num_event_step > MAX_EVENTS:
         # Shift time forward from the current step to this event.
-        if step - current_step > 1000:
-          i = i + 1
-          print('shift steps %s >100' % (step - current_step))
-          print(i)
-          return performance_events
-
-        while step > current_step + MAX_SHIFT_STEPS:
-          # We need to move further than the maximum shift size.
-          # print('shift steps %s >100' % (step - current_step))
-          performance_events.append(
-              PerformanceEvent(event_type=PerformanceEvent.TIME_SHIFT,
-                               event_value=MAX_SHIFT_STEPS))
-          current_step += MAX_SHIFT_STEPS
-
+        print('shift steps %s >1000 or len events %s > 512' % (shift_step, num_event_step))
+        return performance_events
+      elif step > current_step:
         performance_events.append(
-            PerformanceEvent(event_type=PerformanceEvent.TIME_SHIFT,
-                             event_value=int(step - current_step)))
+          PerformanceEvent(event_type=PerformanceEvent.TIME_SHIFT,
+                           event_value=int(shift_step)))
         current_step = step
+      # Libo------------------ for maximum shift step--------------------revise--------
 
       # If we're using velocity and this note's velocity is different from the
       # current velocity, change the current velocity.
@@ -380,17 +390,19 @@ class Performance(events_lib.EventSequence):
       # print(st_same)
 
     return sorted_actions
-
+  # Libo---------------------for order of pitch-------------------add----------
 
   @staticmethod
   def ascending_pitch(sorted_actions, st_same, sorted_notes):
     """
-    rearrange the actions with ascending pitch
+    rearrange the actions with ascending pitch, and [on, off, shift]
+    # 127(note on)+127(note off) +100 (shift)
     :param sorted_actions: actions sequence to be rearranged
     :param st_same:  number of actions to be rearranged, from the reverse direction
     :param sorted_notes: sequence of notes
     :return: filtered sequence of actions
     """
+    # print('i am not okay')
     actions_on_p = []
     actions_off_p = []
     for i in range(st_same):
@@ -407,11 +419,12 @@ class Performance(events_lib.EventSequence):
     actions_on = [actions_on_p[i][0] for i in range(len(actions_on_p))]
     actions_off = [actions_off_p[i][0] for i in range(len(actions_off_p))]
     sorted_actions = sorted_actions + actions_on + actions_off
+    # [note on, note off, shift]
     # [1, 2, 3] + [1, 2, 3]
     # for i in range(num_last_notes):
     #   pitch_ser.append(notes_to_filter[-i-1].pitch)
     return sorted_actions
-
+  # Libo---------------------for order of pitch-------------------add----------
 
   def to_sequence(self,
                   velocity=100,
@@ -578,5 +591,5 @@ def extract_performances(
     performances.append(performance)
     stats['performance_lengths_in_seconds'].increment(
         performance.num_steps // steps_per_second)
-
+  # Libo--------------------important information------------------record the time of the performances----------
   return performances, stats.values()

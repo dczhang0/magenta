@@ -36,10 +36,12 @@ from magenta.music import musicxml_reader
 from magenta.music import note_sequence_io
 
 FLAGS = tf.app.flags.FLAGS
+# '/home/zha231/Downloads/midi_yamaha','/tmp/notesequences.tfrecord',
+# '/home/zha231/Downloads/data_midi_e'
 
-tf.app.flags.DEFINE_string('input_dir', '/home/zha231/Downloads/midi_yamaha',
+tf.app.flags.DEFINE_string('input_dir', '/home/zha231/Downloads/data_midi_e_p',
                            'Directory containing files to convert.')
-tf.app.flags.DEFINE_string('output_file', '/tmp/notesequences.tfrecord',
+tf.app.flags.DEFINE_string('output_file', '/home/zha231/Downloads/notesequences.tfrecord',
                            'Path to output TFRecord file. Will be overwritten '
                            'if it already exists.')
 tf.app.flags.DEFINE_bool('recursive', True,

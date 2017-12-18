@@ -22,18 +22,23 @@ import numpy as np
 from magenta.models.performance_rnn import performance_lib
 
 def mask_matrix(pitch_max, shift_max):
-    # probability vector: [pitch off, pitch on, shift]
-    # pitch_max = len([pitch off pitch on])
+    # 127(note on)+127(note off) +100 (shift)
+    # the same with probability vector: [pitch on, pitch off, shift]
+    # proof from file performance_encoder_decoder in folder performance_rnn
+    # and from function PerformanceEvent in file performance_lib in folder performance_rnn
+    # pitch_max = len([pitch on pitch off])
     mask_mat = np.zeros([pitch_max+shift_max, pitch_max+shift_max], dtype='float')
-    mask_mat[0:shift_max, pitch_max:] = -float('inf')
+    mask_mat[0:shift_max, pitch_max:] = -float(0.0000001)
     # np.eye(6,M=None, k=1, dtype='float'), mask_mat.T, mask_mat.tranpose, mask_mat.swapaxes(1,0)
-
+    # -float('inf')
     i = -1
     for j in range(pitch_max):
-        mask_mat[i:, j] = -float('inf')
+        mask_mat[i:, j] = -float(0.0000001)
         i = i - 1
     mask_mat = mask_mat.T
     return mask_mat
+# Libo-------------------mask matrix (transposed based on the input in the graph)--------------------------
+# libo-------------------the same with the onehot encoding and decoding order----------------------
 
 MASK_MATRIX = mask_matrix(256, performance_lib.MAX_SHIFT_STEPS)
 
@@ -131,15 +136,14 @@ def build_graph(mode, config, sequence_example_file_paths=None):
         outputs, lengths)
     logits_flat = tf.contrib.layers.linear(outputs_flat, num_classes)
     # probability vector or matrix
-
-    print(logits_flat)
+    # print(logits_flat)
 
     inputs_flat = magenta.common.flatten_maybe_padded_sequences(
         inputs, lengths)
     inputs_label_flat = tf.argmax(inputs_flat, axis=1)
     flat_pre = tf.reshape(inputs_label_flat, [-1, 1])
-    m = np.zeros([356, 356])
-    # m = MASK_MATRIX
+    # m = np.zeros([num_classes, num_classes])
+    m = MASK_MATRIX
     M = tf.constant(m, dtype=tf.float32)
     mask = tf.gather_nd(M, flat_pre)
     # mask = M[:, inputs_label_flat]
@@ -148,6 +152,7 @@ def build_graph(mode, config, sequence_example_file_paths=None):
     #     tt_i = [M[inputs_label_flat[i + 1], :]]
     #     mask = tf.concat([mask, tt_i], 0)
     logits_flat = logits_flat + mask
+    # Libo-------------------------plus mask vector based on inputs-----------------------------------
 
     if mode == 'train' or mode == 'eval':
       labels_flat = magenta.common.flatten_maybe_padded_sequences(

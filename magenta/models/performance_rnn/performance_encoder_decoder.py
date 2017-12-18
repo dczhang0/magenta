@@ -30,7 +30,7 @@ EVENT_RANGES = [
      performance_lib.MIN_MIDI_PITCH, performance_lib.MAX_MIDI_PITCH),
     (PerformanceEvent.TIME_SHIFT, 1, performance_lib.MAX_SHIFT_STEPS),
 ]
-# 127+127+100
+# 127(note on)+127(note off) +100 (shift)
 # 127+127+100
 
 class PerformanceOneHotEncoding(encoder_decoder.OneHotEncoding):
@@ -71,5 +71,5 @@ class PerformanceOneHotEncoding(encoder_decoder.OneHotEncoding):
             event_type=event_type, event_value=min_value + index - offset)
       offset += max_value - min_value + 1
       #--------------------------------suspend-----------------
-
+      # 127(note on)+127(note off) +100 (shift)
     raise ValueError('Unknown event index: %s' % index)

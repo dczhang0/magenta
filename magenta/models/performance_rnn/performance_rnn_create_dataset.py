@@ -35,11 +35,18 @@ from magenta.pipelines import pipeline
 from magenta.pipelines import pipelines_common
 from magenta.protobuf import music_pb2
 import copy
-
+MAX_EVENTS = 512
+# as in main
 CONFIG = 'performance'
 
+# /tmp/performance_rnn/generated
+# '/tmp/notesequences.tfrecord',
+# '/home/zha231/Downloads/notesequences.tfrecord'
+# '/home/zha231/Downloads/magenta-d700/magenta/testdata/notesequences.tfrecord'
+# Libo---------------------trivial-------------------input and out -------------------------------
+
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('input', '/tmp/notesequences.tfrecord',
+tf.app.flags.DEFINE_string('input', '/home/zha231/Downloads/magenta-d700/magenta/testdata/notesequences.tfrecord',
                            'TFRecord to read NoteSequence protos from.')
 tf.app.flags.DEFINE_string('output_dir', '/home/zha231/Downloads/performance_rnn/sequence_examples',
                            'Directory to write training and eval TFRecord '
@@ -92,7 +99,7 @@ class PerformanceExtractor(pipeline.Pipeline):
   #         if performance._events[i].event_type == 1:
   #             i = i + 1
   #     # return performance
-
+# Libo---------------------useless--------------------------------------------------
 
 def get_pipeline(config, min_events, max_events, eval_ratio):
   """Returns the Pipeline instance which creates the RNN dataset.
@@ -111,6 +118,7 @@ def get_pipeline(config, min_events, max_events, eval_ratio):
 
   # Transpose no more than a major third.
   transposition_range = range(-3, 4)
+  # Libo---------Transposition------------important information-------------------------
 
   partitioner = pipelines_common.RandomPartition(
       music_pb2.NoteSequence,

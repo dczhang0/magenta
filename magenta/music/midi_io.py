@@ -83,7 +83,7 @@ def midi_to_sequence_proto(midi_data):
   # pylint: enable=bare-except
   # midi.instruments[0].notes-----------------------------------------------
   sequence = music_pb2.NoteSequence()
-  print(midi.instruments.__len__())
+  # print(midi.instruments.__len__())
 
   # Populate header.
   sequence.ticks_per_quarter = midi.resolution

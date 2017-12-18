@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Train and evaluate a performance RNN model."""
+"""eval a performance model in parallel"""
 
 import os
 

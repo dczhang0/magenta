@@ -485,10 +485,7 @@ class DAGPipeline(pipeline.Pipeline):
       collection. See get_output_names method.
     """
     def stats_accumulator(unit, unit_inputs, cumulative_stats):
-      i = 0
       for single_input in unit_inputs:
-        # print(2)
-        i = i + 1
         results_ = unit.transform(single_input)
         # print(single_input.filename)
         # print(single_input.id)
