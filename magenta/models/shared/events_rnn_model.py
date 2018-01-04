@@ -325,10 +325,12 @@ class EventSequenceRnnModel(mm.BaseModel):
     #------------------------------------------
     num_iterations = (num_steps -
                       first_iteration_num_steps) / steps_per_iteration
-    softmax_Libo = np.zeros((num_steps, 356), dtype=np.float32)
+    softmax_Libo = np.zeros((num_steps, 1256), dtype=np.float32)
+    #----------------former 356, now 1256--------------------------------
     indices_Libo = np.zeros((num_steps, 1), dtype=np.int)
     softmax_Libo[0, :] = softmax_tmp[0, :]
     indices_Libo[0, 0] = indices_tmp[0]
+    # ------------------------------------------
 
     for i in range(num_iterations):
       event_sequences, final_state, loglik = self._prune_branches(
@@ -351,6 +353,7 @@ class EventSequenceRnnModel(mm.BaseModel):
       indices_Libo[i+1, 0] = indices_tmp[0]
       # loglik is the log probability of the sequence.
       # ------------------------------------------
+
     # Prune to a single sequence.
     event_sequences, final_state, loglik = self._prune_branches(
         event_sequences, final_state, loglik, k=1)

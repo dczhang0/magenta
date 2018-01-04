@@ -37,10 +37,10 @@ from magenta.protobuf import music_pb2
 
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string(
-    'run_dir', None,
+    'run_dir', '/home/zha231/Downloads/performance_rnn/logdir_mask/run1',
     'Path to the directory where the latest checkpoint will be loaded from.')
 tf.app.flags.DEFINE_string(
-    'bundle_file', "/home/zha231/Downloads/performance.mag",
+    'bundle_file', None,
     'Path to the bundle file. If specified, this will take priority over '
     'run_dir, unless save_generator_bundle is True, in which case both this '
     'flag and run_dir are required')
@@ -55,7 +55,7 @@ tf.app.flags.DEFINE_string(
 tf.app.flags.DEFINE_string(
     'config', 'performance', 'Config to use.')
 tf.app.flags.DEFINE_string(
-    'output_dir', '/tmp/performance_rnn/generated',
+    'output_dir', '/home/zha231/Downloads/performance_rnn/generated',
     'The directory where MIDI files will be saved to.')
 tf.app.flags.DEFINE_integer(
     'num_outputs', 10,
@@ -211,12 +211,13 @@ def run_with_flags(generator):
   date_and_time = time.strftime('%Y-%m-%d_%H%M%S')
   digits = len(str(FLAGS.num_outputs))
   for i in range(FLAGS.num_outputs):
-    generated_sequence, softmax_Libo, indices_Libo  = generator.generate(primer_sequence, generator_options)
+    generated_sequence = generator.generate(primer_sequence, generator_options)
     # sequence_generator: generate
     # Performance_Sequence_Generator: _generate
     # performance_model: generate_performance
     # events_rnn_model: _generate_events
     # Libo, loglik
+    # generated_sequence, softmax_Libo, indices_Libo = generator.generate(primer_sequence, generator_options)
 
     midi_filename = '%s_%s.mid' % (date_and_time, str(i + 1).zfill(digits))
     midi_path = os.path.join(output_dir, midi_filename)

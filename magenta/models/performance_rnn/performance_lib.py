@@ -342,7 +342,8 @@ class Performance(events_lib.EventSequence):
           PerformanceEvent(event_type=PerformanceEvent.TIME_SHIFT,
                            event_value=int(shift_step)))
         current_step = step
-      # Libo------------------ for maximum shift step--------------------revise--------
+      # Libo------------------- maximum shift step(time)----------------------revise--------
+      # Libo--------number of events stop criteria to save memory ------------revise--------
 
       # If we're using velocity and this note's velocity is different from the
       # current velocity, change the current velocity.
@@ -403,11 +404,12 @@ class Performance(events_lib.EventSequence):
     :return: filtered sequence of actions
     """
     # print('i am not okay')
+    # sorted([2, 1, 3, 4, 5], key=lambda x: (x < 3, x))
     actions_on_p = []
     actions_off_p = []
     for i in range(st_same):
       pitch = sorted_notes[sorted_actions[-1][1]].pitch
-      # sorted_actions[-1][1]: -1 indicate the last element in list, [1] indicate the idx
+      # sorted_actions[-1][1]: -1 indicate the last element in list, [1] indicate the idx in sorted notes
       if not sorted_actions[-1][2]:
         actions_on_p.append((sorted_actions[-1], pitch))
       else:
@@ -489,6 +491,7 @@ class Performance(events_lib.EventSequence):
           if (max_note_duration and
               note.end_time - note.start_time > max_note_duration):
             # print(note.end_time, note.start_time)
+            #libo-------------------maximum shift step = max_note_duration---------------------
             note.end_time = note.start_time + max_note_duration
           note.pitch = event.event_value
           note.velocity = pitch_velocity

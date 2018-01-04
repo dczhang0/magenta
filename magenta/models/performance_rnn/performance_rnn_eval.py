@@ -26,11 +26,11 @@ from magenta.models.shared import events_rnn_train
 
 # '/home/zha231/Downloads/performance_rnn/sequence_examples/training_performances.tfrecord'
 # '/tmp/performance_rnn/sequence_examples/training_performances.tfrecord',
-# run 1: shift + order
-# run 2: shift + order + mask
+# logdir_mask/run 1: shift + order + mask(10^6)
+# logdir/run 1: shift + order + mask(10^3)
 
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('run_dir', '/home/zha231/Downloads/performance_rnn/logdir_mask/run1',
+tf.app.flags.DEFINE_string('run_dir', '/home/zha231/Downloads/performance_rnn/logdir5/run1',
                            'Path to the directory where checkpoints and '
                            'summary events will be saved during training and '
                            'evaluation. Separate subdirectories for training '

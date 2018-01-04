@@ -49,7 +49,7 @@ class PerformanceRnnModel(events_rnn_model.EventSequenceRnnModel):
     """
     performance_Libo, softmax_Libo, indices_Libo = self._generate_events(num_steps, primer_sequence, temperature,
                                  beam_size, branch_factor, steps_per_iteration)
-    # --------------------------------------------------------------------------------------------
+    # libo------------------------------output more arguments---------------------------------------
     return performance_Libo, softmax_Libo, indices_Libo
 
   def performance_log_likelihood(self, sequence):

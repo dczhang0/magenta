@@ -25,6 +25,9 @@ from magenta.models.performance_rnn import performance_model
 
 import magenta.music as mm
 
+import numpy as np
+from magenta.models.performance_rnn.performance_lib import PerformanceEvent
+import copy
 # This model can leave hanging notes. To avoid cacophony we turn off any note
 # after 5 seconds.
 MAX_NOTE_DURATION_SECONDS = 5.0
@@ -105,6 +108,8 @@ class PerformanceRnnSequenceGenerator(mm.BaseSequenceGenerator):
 
     generate_start_step = mm.quantize_to_step(
         generate_section.start_time, self.steps_per_second, quantize_cutoff=0.0)
+    # libo-----------------start_time* steps_per_sceond +1----------------------------
+
     # Note that when quantizing end_step, we set quantize_cutoff to 1.0 so it
     # always rounds down. This avoids generating a sequence that ends at 5.0
     # seconds when the requested end time is 4.99.
@@ -123,7 +128,8 @@ class PerformanceRnnSequenceGenerator(mm.BaseSequenceGenerator):
           num_velocity_bins=self.num_velocity_bins)
 
     # Ensure that the track extends up to the step we want to start generating.
-    performance.set_length(generate_start_step - performance.start_step)
+    # performance.set_length(generate_start_step - performance.start_step)
+    # libo----------------------delete the function of "add a (3,1)--------------------------------
 
     # Extract generation arguments from generator options.
     arg_types = {
@@ -137,45 +143,129 @@ class PerformanceRnnSequenceGenerator(mm.BaseSequenceGenerator):
                 if name in generator_options.args)
 
     total_steps = performance.num_steps + (
-        generate_end_step - generate_start_step)
-    # 0+3000-1
-    # num_steps: Returns how many steps long this sequence is.
+        generate_end_step - generate_start_step+1)
+    # libo---------------------- add +1 to stay the same with deletete------------------------------
+    # num_steps: Returns how many steps long this sequence is the
     #   Length of the sequence in quantized steps.
-    # ???generate_start_step, start step
 
     if not performance:
       # Primer is empty; let's just start with silence.
       performance.set_length(min(performance_lib.MAX_SHIFT_STEPS, total_steps))
-      # performance.num_steps==100,,,(100,shift)???
+
+    len_prim_events = len(performance)
+    # libo--------------------------- the length of primer performance-------------------------------
+
+    softmax_Libo = np.zeros((len_prim_events, 356)) - 2
+    indices_Libo = np.zeros((len_prim_events, 1), dtype=np.int) - 2
+    # libo-------------------generate arguments as long as the primer sequence---------------------------
+    # libo-------negative number indicates primer sequence, 356 is the length of one-hot vector----------
 
     while performance.num_steps < total_steps:
       # Assume there's around 10 notes per second and 4 RNN steps per note.
       # Can't know for sure until generation is finished because the number of
       # notes per quantized step is variable.
       steps_to_gen = total_steps - performance.num_steps
-      rnn_steps_to_gen = 40 * int(math.ceil(
+      if steps_to_gen < 40:
+          rnn_steps_to_gen = int(0.4 * steps_to_gen) + 1
+      else:
+          rnn_steps_to_gen = 40 * int(math.ceil(
           float(steps_to_gen) / performance_lib.DEFAULT_STEPS_PER_SECOND))
       tf.logging.info(
           'Need to generate %d more steps for this sequence, will try asking '
           'for %d RNN steps' % (steps_to_gen, rnn_steps_to_gen))
-      performance, aa, bb = self._model.generate_performance(
+      performance, softmax_Libo_tmp, indices_Libo_tmp = self._model.generate_performance(
           len(performance) + rnn_steps_to_gen, performance, **args)
-      # performance = self._model.generate_performance(
-      #     len(performance) + rnn_steps_to_gen, performance, **args)
+      # libo-----------------output more arguments------------------------------
+      softmax_Libo = np.vstack((softmax_Libo, softmax_Libo_tmp))
+      indices_Libo = np.vstack((indices_Libo, indices_Libo_tmp))
+
 
       if not self.fill_generate_section:
         # In the interest of speed just go through this loop once, which may not
         # entirely fill the generate section.
         break
 
-    performance.set_length(total_steps)
+    assert indices_Libo.__len__() == performance.__len__()
+    # pitch 0-127 (indicate 1-128),, shift: 1-100
+    # performance_raw_Libo=performance
+    # performance_raw_Libo = copy.deepcopy(performance)
+    # print('length of the whole sequence: %d' % (performance.__len__()))
+    # performance.set_length(total_steps)
+    # # since performance.num_steps > total_steps (time_steps, absolute time),
+    # # prune it into total_steps, the _events steps decrease correspondingly.
+    # print('length of the pruned whole sequence: %d' % (performance.__len__()))
+    # print('length of primer sequence: %d' % (len_prim_events))
 
-    generated_sequence = performance.to_sequence(
-        max_note_duration=self.max_note_duration)
+    # len_whol_seq_Libo = indices_Libo[0].__len__() + extracted_perfs[0]._events.__len__()
+    # len_prun_seq_Libo = len_whol_seq_Libo - performance.__len__()
+    # indices_prun_Libo = indices_Libo[0][0:-len_prun_seq_Libo + 1]
+    # softmax_prun_Libo = softmax_Libo[0][0:-len_prun_seq_Libo + 1]
+    #
+    # aaa = PerformanceEvent(event_type=1, event_value=100)
+    # performance.append(aaa)
+    # # performance[-2:-1]
+    # # performance[-2:]?????????????????????????--------------------
 
-    assert (generated_sequence.total_time - generate_section.end_time) <= 1e-5
-    return generated_sequence
+    # # PerformanceOneHotEncoding
+    # while performance._events[-1].event_type != 3:
+    #     performance._events.pop()
 
+    # len_mag_Libo = performance.__len__()
+    # l_libo = performance._events[-1].event_value
+    # pmf_prun = softmax_Libo[len_mag_Libo - 1][-100:]
+    # fd_Libo = pmf_prun[l_libo-1]
+    # Fd_nominato = sum(pmf_prun[l_libo:])
+    # #  this trimmed probability
+    # w = fd_Libo / Fd_nominato
+
+    # generated_sequence = performance.to_sequence(
+    #     max_note_duration=self.max_note_duration)
+    #
+    # assert (generated_sequence.total_time - generate_section.end_time) <= 1e-5
+    return performance, softmax_Libo, indices_Libo
+    # original, return generated_sequence
+
+  def generate_with_performance(self, performance, total_steps, args):
+    #   generate with performance type of data
+    if not performance:
+        # Primer is empty; let's just start with silence.
+        performance.set_length(min(performance_lib.MAX_SHIFT_STEPS, total_steps))
+
+    len_prim_seq_Libo = performance._events.__len__()
+    softmax_Libo = np.zeros((len_prim_seq_Libo, 356))
+    indices_Libo = np.zeros((len_prim_seq_Libo, 1), dtype=np.int)
+
+    while performance.num_steps < total_steps:
+        # Assume there's around 10 notes per second and 4 RNN steps per note.
+        # Can't know for sure until generation is finished because the number of
+        # notes per quantized step is variable.
+        steps_to_gen = total_steps - performance.num_steps
+        if steps_to_gen < 40:
+            rnn_steps_to_gen = int(0.4 * steps_to_gen) + 1
+        else:
+            rnn_steps_to_gen = 40 * int(math.ceil(
+                float(steps_to_gen) / performance_lib.DEFAULT_STEPS_PER_SECOND))
+        tf.logging.info(
+            'Need to generate %d more steps for this sequence, will try asking '
+            'for %d RNN steps' % (steps_to_gen, rnn_steps_to_gen))
+        performance, softmax_Libo_tmp, indices_Libo_tmp = self._model.generate_performance(
+            len(performance) + rnn_steps_to_gen, performance, **args)
+        softmax_Libo = np.vstack((softmax_Libo, softmax_Libo_tmp))
+        indices_Libo = np.vstack((indices_Libo, indices_Libo_tmp))
+
+        if not self.fill_generate_section:
+            # In the interest of speed just go through this loop once, which may not
+            # entirely fill the generate section.
+            break
+
+    assert indices_Libo.__len__() == performance.__len__()
+    return performance, softmax_Libo, indices_Libo
+
+  # def generate_performance_rnnstep(self, total_steps, primer_perfor, args):
+  #     self.initialize()
+  #     primer_perfor, softmax_Libo, indices_Libo = self._model.generate_performance(
+  #         total_steps, primer_perfor, **args)
+  #     return primer_perfor, softmax_Libo, indices_Libo
 
 def get_generator_map():
   """Returns a map from the generator ID to a SequenceGenerator class creator.

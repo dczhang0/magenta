@@ -193,7 +193,10 @@ class BaseSequenceGenerator(object):
       The generated NoteSequence proto.
     """
     self.initialize()
-    return self._generate(input_sequence, generator_options)
+    performance_Libo, softmax_Libo, indices_Libo = self._generate(input_sequence, generator_options)
+    # ----------------------original outputs generated sequence-------------------------------------
+    # Libo-----------outputs the performance sequence, softmax vector, indices----------------------
+    return performance_Libo, softmax_Libo, indices_Libo
 
   def create_bundle_file(self, bundle_file, bundle_description=None):
     """Writes a generator_pb2.GeneratorBundle file in the specified location.

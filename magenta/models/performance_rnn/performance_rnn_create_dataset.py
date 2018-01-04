@@ -37,8 +37,6 @@ from magenta.protobuf import music_pb2
 import copy
 MAX_EVENTS = 512
 # as in main
-CONFIG = 'performance'
-
 # /tmp/performance_rnn/generated
 # '/tmp/notesequences.tfrecord',
 # '/home/zha231/Downloads/notesequences.tfrecord'
@@ -48,7 +46,7 @@ CONFIG = 'performance'
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('input', '/home/zha231/Downloads/magenta-d700/magenta/testdata/notesequences.tfrecord',
                            'TFRecord to read NoteSequence protos from.')
-tf.app.flags.DEFINE_string('output_dir', '/home/zha231/Downloads/performance_rnn/sequence_examples',
+tf.app.flags.DEFINE_string('output_dir', '/home/zha231/Downloads/performance_rnn/sequence_examples1',
                            'Directory to write training and eval TFRecord '
                            'files. The TFRecord files are populated with '
                            'SequenceExample protos.')
