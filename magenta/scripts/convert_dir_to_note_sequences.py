@@ -39,9 +39,9 @@ FLAGS = tf.app.flags.FLAGS
 # '/home/zha231/Downloads/midi_yamaha','/tmp/notesequences.tfrecord',
 # '/home/zha231/Downloads/data_midi_e'
 
-tf.app.flags.DEFINE_string('input_dir', '/home/zha231/Downloads/data_midi_e_p',
+tf.app.flags.DEFINE_string('input_dir', '~/data/data_2011_test',
                            'Directory containing files to convert.')
-tf.app.flags.DEFINE_string('output_file', '/home/zha231/Downloads/notesequences.tfrecord',
+tf.app.flags.DEFINE_string('output_file', '~/data/notesequences11.tfrecord',
                            'Path to output TFRecord file. Will be overwritten '
                            'if it already exists.')
 tf.app.flags.DEFINE_bool('recursive', True,

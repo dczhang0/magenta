@@ -335,7 +335,7 @@ class Performance(events_lib.EventSequence):
       shift_step = step - current_step
       if shift_step > MAX_SHIFT_STEPS or num_event_step > MAX_EVENTS:
         # Shift time forward from the current step to this event.
-        print('shift steps %s >1000 or len events %s > 512' % (shift_step, num_event_step))
+        # print('shift steps %s >1000 or len events %s > 512' % (shift_step, num_event_step))
         return performance_events
       elif step > current_step:
         performance_events.append(
@@ -364,6 +364,7 @@ class Performance(events_lib.EventSequence):
 
     return performance_events
 
+
   @staticmethod
   def actions_ascending_pitch(sorted_notes, note_events):
     """
@@ -377,19 +378,25 @@ class Performance(events_lib.EventSequence):
     st_same = 1
     # print('size of sorted_actions %s' % len(sorted_actions))
     sorted_actions.append(note_events[0])
+    i = 1
     # sorted_actions.append((note_events[0], sorted_notes[note_events[0][1]].pitch))
     for step, idx, is_offset in note_events[1:]:
       sorted_actions.append((step, idx, is_offset))
+      i = i + 1
       last_step = sorted_actions[-2][0]
       if last_step == step:
         st_same = st_same + 1
+        if len(note_events) == i:
+          sorted_actions = Performance.ascending_pitch(sorted_actions, st_same, sorted_notes)
+          # assert len(sorted_actions) == len(note_events)
+          return sorted_actions
       elif st_same > 1:
         sorted_actions.pop()
         sorted_actions = Performance.ascending_pitch(sorted_actions, st_same, sorted_notes)
         sorted_actions.append((step, idx, is_offset))
         st_same = 1
       # print(st_same)
-
+    # assert len(sorted_actions) == len(note_events)
     return sorted_actions
   # Libo---------------------for order of pitch-------------------add----------
 
@@ -407,17 +414,33 @@ class Performance(events_lib.EventSequence):
     # sorted([2, 1, 3, 4, 5], key=lambda x: (x < 3, x))
     actions_on_p = []
     actions_off_p = []
+    pitch_off = []
+    pitch_on =[]
+    # pitch = 0
     for i in range(st_same):
+      # if pitch == sorted_notes[sorted_actions[-1][1]].pitch:
+      #   sorted_actions.pop()
+      #   continue
       pitch = sorted_notes[sorted_actions[-1][1]].pitch
       # sorted_actions[-1][1]: -1 indicate the last element in list, [1] indicate the idx in sorted notes
-      if not sorted_actions[-1][2]:
-        actions_on_p.append((sorted_actions[-1], pitch))
-      else:
+      if sorted_actions[-1][2] and (pitch not in pitch_off):
+        pitch_off.append(pitch)
         actions_off_p.append((sorted_actions[-1], pitch))
+      elif (not sorted_actions[-1][2]) and (pitch not in pitch_on):
+        pitch_on.append(pitch)
+        actions_on_p.append((sorted_actions[-1], pitch))
       sorted_actions.pop()
 
     actions_on_p = sorted(actions_on_p, key=lambda x: x[1])
+    # for i in range(len(actions_on_p)-1):
+    #   if actions_on_p[i][1] == actions_on_p[i+1][1]:
+    #     # print(actions_on_p[i])
+    #     del actions_on_p[i]
     actions_off_p = sorted(actions_off_p, key=lambda x: x[1])
+    # for i in range(len(actions_off_p)-1):
+    #   if actions_off_p[i][1] == actions_off_p[i+1][1]:
+    #     # print(actions_off_p[i])
+    #     del actions_off_p[i]
     actions_on = [actions_on_p[i][0] for i in range(len(actions_on_p))]
     actions_off = [actions_off_p[i][0] for i in range(len(actions_off_p))]
     sorted_actions = sorted_actions + actions_on + actions_off
@@ -582,6 +605,7 @@ def extract_performances(
   # Translate the quantized sequence into a Performance.
   performance = Performance(quantized_sequence, start_step=start_step,
                             num_velocity_bins=num_velocity_bins)
+  # Performance.validation_of_order(performance)
 
   if (max_events_truncate is not None and
       len(performance) > max_events_truncate):

@@ -41,14 +41,14 @@ def mask_matrix(pitch_max, shift_max):
     #     p_max  p_max+s_max
     """
     mask_mat = np.zeros([pitch_max+shift_max, pitch_max+shift_max], dtype='float')
-    mask_mat[pitch_max:, pitch_max:] = -float(0)
+    mask_mat[pitch_max:, pitch_max:] = -float(1000000)
     # [pitch on, pitch off, shift],
     #  -inf in the right down of the matrix, guarantee no successive shifts.
     # mask_mat[:pitch_max, :pitch_max] = -1000.0 * np.triu(np.ones((pitch_max, pitch_max)), 0)
     j = 0
     # column index
     for i in range(pitch_max):
-        mask_mat[i, j:pitch_max] = -float(100000)
+        mask_mat[i, j:pitch_max] = -float(1000000)
         j = j + 1
         # guarantee the order of pitch.
     mask_mat = mask_mat.T
@@ -69,7 +69,6 @@ def mask_matrix(pitch_max, shift_max):
 #         i = i - 1
 #     mask_mat = mask_mat.T
 #     return mask_mat
-print('come on')
 MASK_MATRIX = mask_matrix(256, performance_lib.MAX_SHIFT_STEPS)
 # MASK_MATRIX = mask_matrix(56, performance_lib.MAX_SHIFT_STEPS-950)
 # Libo-------------------mask matrix (transposed based on the input in the graph)--------------------------

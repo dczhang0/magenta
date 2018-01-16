@@ -34,6 +34,7 @@ from magenta.pipelines import note_sequence_pipelines
 from magenta.pipelines import pipeline
 from magenta.pipelines import pipelines_common
 from magenta.protobuf import music_pb2
+from magenta.models.performance_rnn.performance_encoder_decoder import PerformanceOneHotEncoding
 import copy
 MAX_EVENTS = 512
 # as in main
@@ -44,9 +45,9 @@ MAX_EVENTS = 512
 # Libo---------------------trivial-------------------input and out -------------------------------
 
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('input', '/home/zha231/Downloads/magenta-d700/magenta/testdata/notesequences.tfrecord',
+tf.app.flags.DEFINE_string('input', '~/data/notesequences11.tfrecord',
                            'TFRecord to read NoteSequence protos from.')
-tf.app.flags.DEFINE_string('output_dir', '/home/zha231/Downloads/performance_rnn/sequence_examples1',
+tf.app.flags.DEFINE_string('output_dir', '~/data/performance_rnn/sequence_examples',
                            'Directory to write training and eval TFRecord '
                            'files. The TFRecord files are populated with '
                            'SequenceExample protos.')
@@ -79,12 +80,45 @@ class PerformanceExtractor(pipeline.Pipeline):
         num_velocity_bins=self._num_velocity_bins)
     # print(1)
     # print(quantized_sequence.id)
+    for i in range(len(performances)):
+        self.validation_of_order(performances[i])
     self._set_stats(stats)
     # print(performances.end_time)
     # assert len(performances) == 1
     # perfor = performances[0]
     return performances
 
+
+  @staticmethod
+  def validation_of_order(performance_sequence):
+    """
+    :param sequence:
+    :return:
+    """
+    # assert isinstance(sequence, Performance)
+    assert isinstance(performance_sequence, performance_lib.Performance), "not a Performance data"
+    hotcoding = PerformanceOneHotEncoding()
+    intege_seq = [hotcoding.encode_event(performance_sequence[j]) for j in range(len(performance_sequence))]
+    # [on, off, shift]
+    start_shift = performance_lib.MAX_MIDI_PITCH*2 + 1
+    for i in range(len(intege_seq))[1:]:
+      if intege_seq[i] > start_shift:
+        assert intege_seq[i-1] <= start_shift, "two shift, %d" % i
+      elif intege_seq[i-1] <= start_shift:
+          # if intege_seq[i] == intege_seq[i-1]:
+          # to test the validation of delete same actions in performance_lib
+          if intege_seq[i] <= intege_seq[i-1]:
+              print(performance_sequence[i-3:i+5])
+              print(intege_seq[i-3:i+5])
+
+        # assert intege_seq[i] > intege_seq[i-1], "pitch order, %d" % i
+
+    # for i, event in enumerate(performance_sequence):
+    #   if event.event_type == PerformanceEvent.TIME_SHIFT:
+    #     shift_index.append(i)
+    # import numpy as np
+    # cc = np.array(intege_seq)
+    # a=(cc > start_shift)
 
   # def note_order_performance(self, performance):
   #     performance_0 = performance_lib.Performance(

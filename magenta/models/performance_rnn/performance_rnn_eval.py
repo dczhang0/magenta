@@ -30,7 +30,7 @@ from magenta.models.shared import events_rnn_train
 # logdir/run 1: shift + order + mask(10^3)
 
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('run_dir', '/home/zha231/Downloads/performance_rnn/logdir5/run1',
+tf.app.flags.DEFINE_string('run_dir', '~/data/performance_rnn/logdir/run1',
                            'Path to the directory where checkpoints and '
                            'summary events will be saved during training and '
                            'evaluation. Separate subdirectories for training '
@@ -40,7 +40,7 @@ tf.app.flags.DEFINE_string('run_dir', '/home/zha231/Downloads/performance_rnn/lo
                            'to the parent directory of `run_dir` to see all '
                            'your runs.')
 tf.app.flags.DEFINE_string('config', 'performance', 'The config to use')
-tf.app.flags.DEFINE_string('sequence_example_file', '/home/zha231/Downloads/performance_rnn/sequence_examples/eval_performances.tfrecord',
+tf.app.flags.DEFINE_string('sequence_example_file', '~/data/performance_rnn/sequence_examples/eval_performances.tfrecord',
                            'Path to TFRecord file containing '
                            'tf.SequenceExample records for training or '
                            'evaluation.')
@@ -106,7 +106,7 @@ def main(unused_argv):
         (FLAGS.num_eval_examples if FLAGS.num_eval_examples else
          magenta.common.count_records(sequence_example_file_paths)) //
         config.hparams.batch_size)
-    events_rnn_train.run_eval(graph, train_dir, eval_dir, num_batches)
+    events_rnn_train.run_eval(graph, train_dir, eval_dir, num_batches, timeout_secs=60)
 
   else:
     events_rnn_train.run_training(graph, train_dir, FLAGS.num_training_steps,

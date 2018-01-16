@@ -25,7 +25,7 @@ import tensorflow as tf
 from magenta.common import state_util
 from magenta.models.shared import events_rnn_graph
 import magenta.music as mm
-
+from magenta.models.performance_rnn.performance_encoder_decoder import PerformanceOneHotEncoding
 
 class EventSequenceRnnModelException(Exception):
   pass
@@ -105,13 +105,22 @@ class EventSequenceRnnModel(mm.BaseModel):
       # we're generating.
       loglik = self._config.encoder_decoder.evaluate_log_likelihood(
           event_sequences, softmax[:, :-1, :])
+      # softmax[:, :-1, :]: using the softmax matrices except the last and new softmax vector
     else:
       loglik = np.zeros(len(event_sequences))
+
+    hotcoding = PerformanceOneHotEncoding()
+    input_index = hotcoding.encode_event(event_sequences[0][-1])
+    assert inputs[0][-1][input_index] == 1
+    softmax_vector = softmax[-1, -1, :]
+    assert softmax_vector[input_index] == 0
 
     indices = self._config.encoder_decoder.extend_event_sequences(
         event_sequences, softmax)
     # decode one long vector to an event----------------------------------------------------
     p = softmax[range(len(event_sequences)), -1, indices]
+
+    assert softmax_vector[indices] > 0
 
     #print('loglik', loglik + np.log(p), len(event_sequences), list(map(len, event_sequences)), event_sequences[0][-1])
     # print('loglik', loglik + np.log(p), list(map(len, event_sequences)), event_sequences[0][-1])

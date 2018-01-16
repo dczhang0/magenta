@@ -495,9 +495,11 @@ class DAGPipeline(pipeline.Pipeline):
 
     stats = []
     results = {self.input: [input_object]}
+    # i = 0
     for unit in self.call_list[1:]:
       # Compute transformation.
-
+      # i = i + 1
+      # print(i)
       if isinstance(unit, DagOutput):
         unit_outputs = self._get_outputs_as_signature(self.dag[unit], results)
       else:

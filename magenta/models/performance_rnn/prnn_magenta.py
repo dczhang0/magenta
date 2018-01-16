@@ -534,9 +534,6 @@ def main(unused_argv):
     :param unused_argv:
     :return:
     """
-    # a = A()
-    # if clause
-    # # usage of ndarray
     primer_melody = FLAGS.primer_melody
     config = FLAGS.config
     bundle_file = FLAGS.bundle_file
@@ -552,7 +549,7 @@ def main(unused_argv):
     aaa = generator_bundle_args(bundle_file=bundle_file)
     generator = aaa.get_generator(config_name=config)
     primer_performance = extract_primer_performance(primer_melody=primer_melody)
-    T_z = [1.5, 2, 3, 4]
+    T_z = [10, 20, 30, 40]
     P_z = [50, 50, 40, 40]
     E_z = [1, 0, 1, 0]
     B_z = [0, 0, 0, 0]

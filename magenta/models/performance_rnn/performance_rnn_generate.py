@@ -37,7 +37,7 @@ from magenta.protobuf import music_pb2
 
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string(
-    'run_dir', '/home/zha231/Downloads/performance_rnn/logdir_mask/run1',
+    'run_dir', '/home/zha231/Downloads/performance_rnn/logdir15/run1',
     'Path to the directory where the latest checkpoint will be loaded from.')
 tf.app.flags.DEFINE_string(
     'bundle_file', None,

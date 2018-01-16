@@ -36,7 +36,7 @@ from magenta.models.shared import events_rnn_train
 # logdir5/run 1: shift + order + mask(0,order, shift, -10^5)
 
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('run_dir', '/home/zha231/Downloads/performance_rnn/logdir5/run1',
+tf.app.flags.DEFINE_string('run_dir', '~/data/performance_rnn/logdir/run1',
                            'Path to the directory where checkpoints and '
                            'summary events will be saved during training and '
                            'evaluation. Separate subdirectories for training '
@@ -46,7 +46,7 @@ tf.app.flags.DEFINE_string('run_dir', '/home/zha231/Downloads/performance_rnn/lo
                            'to the parent directory of `run_dir` to see all '
                            'your runs.')
 tf.app.flags.DEFINE_string('config', 'performance', 'The config to use')
-tf.app.flags.DEFINE_string('sequence_example_file', '/home/zha231/Downloads/performance_rnn/sequence_examples/training_performances.tfrecord',
+tf.app.flags.DEFINE_string('sequence_example_file', '~/data/performance_rnn/sequence_examples04/training_performances.tfrecord',
                            'Path to TFRecord file containing '
                            'tf.SequenceExample records for training or '
                            'evaluation.')
