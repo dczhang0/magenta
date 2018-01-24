@@ -305,6 +305,7 @@ class EventSequenceEncoderDecoder(object):
       for softmax_pos, position in enumerate(range(start_pos, end_pos)):
         index = self.events_to_label(event_sequences[i], position)
         loglik += np.log(softmax[i][softmax_pos][index])
+        # --------------libo a summed log likelihood-----------------------------------
       all_loglik.append(loglik)
     return all_loglik
 

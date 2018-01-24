@@ -39,8 +39,8 @@ STANDARD_PPQ = constants.STANDARD_PPQ
 DEFAULT_STEPS_PER_SECOND = 100
 MAX_SHIFT_STEPS = 1000
 # MAX_SHIFT_STEPS = 100
-# max_shift equal to "max_note_duration" in "to sequence", which is the maximum note duration in generation.
-# Libo-------------------------------------maximum shift step------------------------------------------
+# max_shift equal to "max_note_duration" in "to_sequence", which is the maximum note duration in generation.
+# Libo-------------------------------------maximum shift step------500???------------------------------------
 MAX_EVENTS = 512
 # from magenta.models.performance_rnn.performance_rnn_create_dataset import MAX_EVENTS
 # Libo----------trivial-------to reduce memory use, especially when the performance is too long--------------
@@ -330,12 +330,12 @@ class Performance(events_lib.EventSequence):
       #       PerformanceEvent(event_type=PerformanceEvent.TIME_SHIFT,
       #                        event_value=int(step - current_step)))
       #   current_step = step
-
       num_event_step = len(performance_events)
       shift_step = step - current_step
       if shift_step > MAX_SHIFT_STEPS or num_event_step > MAX_EVENTS:
         # Shift time forward from the current step to this event.
-        # print('shift steps %s >1000 or len events %s > 512' % (shift_step, num_event_step))
+        if shift_step > MAX_SHIFT_STEPS:
+          print('shift steps %s >1000 or len events %s > 512' % (shift_step, num_event_step))
         return performance_events
       elif step > current_step:
         performance_events.append(
@@ -605,7 +605,7 @@ def extract_performances(
   # Translate the quantized sequence into a Performance.
   performance = Performance(quantized_sequence, start_step=start_step,
                             num_velocity_bins=num_velocity_bins)
-  # Performance.validation_of_order(performance)
+  # ---------------libo:Performance.validation_of_order(performance)-----------------
 
   if (max_events_truncate is not None and
       len(performance) > max_events_truncate):

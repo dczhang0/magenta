@@ -158,7 +158,7 @@ class PerformanceRnnSequenceGenerator(mm.BaseSequenceGenerator):
       tf.logging.info(
           'Need to generate %d more steps for this sequence, will try asking '
           'for %d RNN steps' % (steps_to_gen, rnn_steps_to_gen))
-      performance, aa, bb = self._model.generate_performance(
+      performance, _ = self._model.generate_performance(
           len(performance) + rnn_steps_to_gen, performance, **args)
       # performance = self._model.generate_performance(
       #     len(performance) + rnn_steps_to_gen, performance, **args)
@@ -169,6 +169,7 @@ class PerformanceRnnSequenceGenerator(mm.BaseSequenceGenerator):
         break
 
     performance.set_length(total_steps)
+    # -------libo: it will affect the sequence and log likelihood-------------------
 
     generated_sequence = performance.to_sequence(
         max_note_duration=self.max_note_duration)

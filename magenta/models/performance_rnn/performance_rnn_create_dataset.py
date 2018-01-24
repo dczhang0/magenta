@@ -82,6 +82,7 @@ class PerformanceExtractor(pipeline.Pipeline):
     # print(quantized_sequence.id)
     for i in range(len(performances)):
         self.validation_of_order(performances[i])
+    # Libo---------------------revise check order and shift--------------------------------------------------
     self._set_stats(stats)
     # print(performances.end_time)
     # assert len(performances) == 1
@@ -100,25 +101,25 @@ class PerformanceExtractor(pipeline.Pipeline):
     hotcoding = PerformanceOneHotEncoding()
     intege_seq = [hotcoding.encode_event(performance_sequence[j]) for j in range(len(performance_sequence))]
     # [on, off, shift]
-    start_shift = performance_lib.MAX_MIDI_PITCH*2 + 1
+    end_pitch = performance_lib.MAX_MIDI_PITCH*2 + 1
     for i in range(len(intege_seq))[1:]:
-      if intege_seq[i] > start_shift:
-        assert intege_seq[i-1] <= start_shift, "two shift, %d" % i
-      elif intege_seq[i-1] <= start_shift:
+      if intege_seq[i] > end_pitch:
+        assert intege_seq[i-1] <= end_pitch, "two shift, %d" % i
+      elif intege_seq[i-1] <= end_pitch:
           # if intege_seq[i] == intege_seq[i-1]:
           # to test the validation of delete same actions in performance_lib
-          if intege_seq[i] <= intege_seq[i-1]:
-              print(performance_sequence[i-3:i+5])
-              print(intege_seq[i-3:i+5])
-
-        # assert intege_seq[i] > intege_seq[i-1], "pitch order, %d" % i
+          # if intege_seq[i] <= intege_seq[i-1]:
+          #     print(performance_sequence[i-3:i+5])
+          #     print(intege_seq[i-3:i+5])
+          assert intege_seq[i] > intege_seq[i-1], "pitch order, %d" % i
+    # Libo---------------------revise check order and shift--------------------------------------------------
 
     # for i, event in enumerate(performance_sequence):
     #   if event.event_type == PerformanceEvent.TIME_SHIFT:
     #     shift_index.append(i)
     # import numpy as np
     # cc = np.array(intege_seq)
-    # a=(cc > start_shift)
+    # a=(cc > end_pitch)
 
   # def note_order_performance(self, performance):
   #     performance_0 = performance_lib.Performance(
@@ -200,9 +201,19 @@ def main(unused_argv):
 
   input_dir = os.path.expanduser(FLAGS.input)
   output_dir = os.path.expanduser(FLAGS.output_dir)
+  tttest = pipeline.tf_record_iterator(input_dir, pipeline_instance.input_type)
+  # print(tttest)
+  # sequences = []
+  # for tt in tttest:
+  #     sequences.append(tt)
+  # print(tttest)
+  # for tt in tttest:
+  #     print("okay")
+  # print(tttest)
+  # ------------------libo: why it's wrong-------------------------
   pipeline.run_pipeline_serial(
       pipeline_instance,
-      pipeline.tf_record_iterator(input_dir, pipeline_instance.input_type),
+      tttest,
       output_dir)
 
 

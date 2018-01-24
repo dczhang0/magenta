@@ -14,7 +14,7 @@ from magenta.music import constants
 from magenta.protobuf import generator_pb2
 from magenta.protobuf import music_pb2
 
-from config_libo import *
+from magenta.models.performance_rnn.config_libo import *
 from magenta.models.performance_rnn import performance_lib
 from magenta.models.performance_rnn.performance_lib import PerformanceEvent
 # aaa = PerformanceEvent(event_type=3, event_value=100)
@@ -110,7 +110,7 @@ class weight_generate(object):
         while self.performance.num_steps < time_step_z:
             total_steps = self.performance.__len__() + 1
             generator.initialize()
-            self.performance, softmax_vec, indices = generator._model.generate_performance(
+            self.performance, softmax_vec = generator._model.generate_performance(
                 total_steps, self.performance, **args)
             # generate 1 rnn_step
 
@@ -139,12 +139,12 @@ class weight_generate(object):
         index_shift = np.int(-MAX_SHIFT_STEPS - 1 + shift_step_z)
         total_steps = self.performance.__len__() + 1
         generator.initialize()
-        self.performance, softmax_vec, indices = generator._model.generate_performance(
+        self.performance, softmax_vec = generator._model.generate_performance(
             total_steps, self.performance, **args)
         fd = softmax_vec[-1][index_shift]
         shift_given = PerformanceEvent(event_type=3, event_value=np.int(shift_step_z))
         self.performance._events.pop()
-        self.performance.append(shift_given)
+        self.performance._events.append(shift_given)
         w = np.log(fd*1000) - np.log(1000)
 
         return w
@@ -168,7 +168,7 @@ class weight_generate(object):
             # run across time or pitch
             total_steps = self.performance.__len__() + 1
             generator.initialize()
-            self.performance, softmax_vec, indices = generator._model.generate_performance(
+            self.performance, softmax_vec = generator._model.generate_performance(
                 total_steps, self.performance, **args)
             encode_value = hotcoding.encode_event(self.performance._events[-1])
 
@@ -178,7 +178,7 @@ class weight_generate(object):
         # pull back
         self.performance._events.pop()
         pitch_given = PerformanceEvent(event_type=1, event_value=np.int(pitch_z))
-        self.performance.append(pitch_given)
+        self.performance._events.append(pitch_given)
         assert time_step_z == self.performance.num_steps
 
         pmf_prun_time = softmax_vec[-1][-MAX_SHIFT_STEPS:]
@@ -200,12 +200,14 @@ class weight_generate(object):
         """
         total_steps = self.performance.__len__() + 1
         generator.initialize()
-        self.performance, softmax_vec, indices = generator._model.generate_performance(
+        self.performance, softmax_vec = generator._model.generate_performance(
             total_steps, self.performance, **args)
-        fd = softmax_vec[-1][pitch_z]
-        pitch_given = PerformanceEvent(event_type=1, event_value=np.int(pitch_z))
         self.performance._events.pop()
-        self.performance.append(pitch_given)
+        pitch_given = PerformanceEvent(event_type=1, event_value=np.int(pitch_z))
+        hotcoding = PerformanceOneHotEncoding()
+        index = hotcoding.encode_event(pitch_given)
+        fd = softmax_vec[-1][index]
+        self.performance._events.append(pitch_given)
         w = np.log(fd)
 
         return w
@@ -222,13 +224,14 @@ class weight_generate(object):
         """
         total_steps = self.performance.__len__() + 1
         generator.initialize()
-        self.performance, softmax_vec, indices = generator._model.generate_performance(
+        self.performance, softmax_vec = generator._model.generate_performance(
             total_steps, self.performance, **args)
-        fd = softmax_vec[-1][pitch_z]
-        # just one matrix
         self.performance._events.pop()
         pitch_given = PerformanceEvent(event_type=2, event_value=np.int(pitch_z))
-        self.performance.append(pitch_given)
+        hotcoding = PerformanceOneHotEncoding()
+        index = hotcoding.encode_event(pitch_given)
+        fd = softmax_vec[-1][index]
+        self.performance._events.append(pitch_given)
         w = np.log(fd)
 
         return w
@@ -393,8 +396,8 @@ class sampler_given_actions(object):
 
         for i in range(num_outputs):
             performance = self.perf_list[i]
-            generated_sequence = performance.to_sequence(
-                max_note_duration=max_note_duration)
+            generated_sequence = performance.to_sequence(max_note_duration=max_note_duration)
+
             if total_time > 0:
                 assert (generated_sequence.total_time - total_time) <= 1e-5
             midi_filename = '%s_%s.mid' % (date_and_time, str(i + 1).zfill(digits))
@@ -549,7 +552,7 @@ def main(unused_argv):
     aaa = generator_bundle_args(bundle_file=bundle_file)
     generator = aaa.get_generator(config_name=config)
     primer_performance = extract_primer_performance(primer_melody=primer_melody)
-    T_z = [10, 20, 30, 40]
+    T_z = [15, 20, 30, 40]
     P_z = [50, 50, 40, 40]
     E_z = [1, 0, 1, 0]
     B_z = [0, 0, 0, 0]

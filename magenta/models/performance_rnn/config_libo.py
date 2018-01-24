@@ -31,7 +31,7 @@ from magenta.protobuf import music_pb2
 
 NUM_OUTPUTS = 20
 CONFIG = 'performance'
-BUNDLE_PATH = "/home/zha231/Downloads/performance.mag"
+BUNDLE_PATH = "~/data/performance_new.mag"
 NUM_STEPS = 200
 PRIMER_MELODY = "[60, -2, 60, -2, 67, -2, 67, -2]"
 # PRIMER_MELODY = "[]"
