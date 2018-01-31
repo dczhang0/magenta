@@ -52,15 +52,18 @@ tf.app.flags.DEFINE_integer('num_eval_examples', 0,
                             'The number of evaluation examples your model '
                             'should process for each evaluation step.'
                             'Leave as 0 to use the entire evaluation set.')
-tf.app.flags.DEFINE_integer('summary_frequency', 10,
+tf.app.flags.DEFINE_integer('summary_frequency', 20,
                             'A summary statement will be logged every '
                             '`summary_frequency` steps during training or '
                             'every `summary_frequency` seconds during '
                             'evaluation.')
-tf.app.flags.DEFINE_integer('num_checkpoints', 10,
+tf.app.flags.DEFINE_integer('num_checkpoints', 20,
                             'The number of most recent checkpoints to keep in '
                             'the training directory. Keeps all if 0.')
-tf.app.flags.DEFINE_boolean('eval', True,
+tf.app.flags.DEFINE_boolean('eval', False,
+                            'If True, this process only evaluates the model '
+                            'on test dataset and does not update weights.')
+tf.app.flags.DEFINE_boolean('test', False,
                             'If True, this process only evaluates the model '
                             'and does not update weights.')
 tf.app.flags.DEFINE_string('log', 'INFO',
@@ -90,7 +93,7 @@ def main(unused_argv):
   config = performance_model.default_configs[FLAGS.config]
   config.hparams.parse(FLAGS.hparams)
 
-  mode = 'eval' if FLAGS.eval else 'train'
+  mode = 'eval' if FLAGS.eval or FLAGS.test else 'train'
   graph = events_rnn_graph.build_graph(
       mode, config, sequence_example_file_paths)
 
@@ -107,6 +110,16 @@ def main(unused_argv):
          magenta.common.count_records(sequence_example_file_paths)) //
         config.hparams.batch_size)
     events_rnn_train.run_eval(graph, train_dir, eval_dir, num_batches, timeout_secs=60)
+
+  elif FLAGS.test:
+      test_dir = os.path.join(run_dir, 'test')
+      tf.gfile.MakeDirs(test_dir)
+      tf.logging.info('Test dir: %s', test_dir)
+      num_batches = (
+          (FLAGS.num_eval_examples if FLAGS.num_eval_examples else
+           magenta.common.count_records(sequence_example_file_paths)) //
+          config.hparams.batch_size)
+      events_rnn_train.run_eval(graph, train_dir, test_dir, num_batches, timeout_secs=60)
 
   else:
     events_rnn_train.run_training(graph, train_dir, FLAGS.num_training_steps,

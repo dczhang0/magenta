@@ -250,6 +250,7 @@ def note_sequence_shift_time(subsequence, time_shift):
         subsequence.notes[i].end_time = subsequence.notes[i].end_time + time_shift
 
     subsequence.total_time = subsequence.total_time + time_shift
+    # total_time: ending time
     # subsequence.subsequence_info.start_time_offset = time_shift + subsequence.notes[0].start_time
     return subsequence
 
@@ -455,8 +456,8 @@ class weight_generate(object):
     #     return w
     #     # useful functions that should be saved
 
-    def sample_to_next_section(self, generator,
-                               end_time_steps, next_event, args):
+    def section_generate(self, generator,
+                         end_time_steps, next_event, args):
         """
         freely sample to the next section. It is different from sample to next event.
         The structure of next section is fixed. After shift to the given time, jump
@@ -471,37 +472,36 @@ class weight_generate(object):
 
         assert isinstance(next_event, PerformanceEvent), "not a Performance Event"
         assert end_time_steps > self.performance.num_steps
-        print('free sample to time_step %d' % end_time_steps)
+        # print('free sample to time_step %d' % end_time_steps)
+        hotcoding = PerformanceOneHotEncoding()
 
         while self.performance.num_steps < end_time_steps:
             # " Assume there's around 10 notes per second and 4 RNN steps per note. Can't know for sure
             #  until generation is finished because the number of notes per quantized step is variable."
             # one seconds: 100 time steps, 40 rnn steps (assume, not exact)
             time_steps_to_gen = end_time_steps - self.performance.num_steps
-            if time_steps_to_gen > 40:
-                rnn_steps_to_gen = int(0.3 * time_steps_to_gen)
-                # using 0.3 not 0.4 to balance the accuracy
-                # and the generation stop at the first step that run across the time step.
-                print('Need to generate %d more steps for this sequence, will try asking'
-                      'for %d RNN steps' % (time_steps_to_gen, rnn_steps_to_gen))
-            else:
-                rnn_steps_to_gen = 1
+            rnn_steps_to_gen = int(0.4 * time_steps_to_gen) + 1
+            # print('Need to generate %d more steps for this sequence, will try asking'
+            #       'for %d RNN steps' % (time_steps_to_gen, rnn_steps_to_gen))
 
             total_steps = len(self.performance) + rnn_steps_to_gen
             generator.initialize()
-            self.performance, softmax_vec = generator._model.generate_performance(
-                total_steps, self.performance, **args)
-            # g---------------modify using pop() after generation until reach the last------------------------------------
+            self.performance, softmax_vec = generator._model.generate_performance(total_steps,
+                                                                                  self.performance, **args)
 
-        hotcoding = PerformanceOneHotEncoding()
-        index_next = hotcoding.encode_event(next_event)
+        self.performance.set_length(np.int(end_time_steps))
+        while self.performance[-1].event_type != 3:
+            self.performance._events.pop()
+            # guarantee the last one is a time shift, or the F will be very complex
+        final_length = len(self.performance)
+        softmax_vec = softmax_vec[:final_length, :]
 
         # last shift run across the time constraint
-        self.performance.set_length(np.int(end_time_steps))
-        # pull back (if the last shift choice is perfect, that's okay, the weight (probability)
-        #  is always the most important, not only the sequences or choices)
+        # pull back the last shift (if the last shift choice is perfect, that's okay. The weight
+        # (probability) is always the most important, not only the sequences or choices)
         index_last = hotcoding.encode_event(self.performance._events[-1])
         fd_shift = softmax_vec[-1][index_last]
+
         # index_befor_last = hotcoding.encode_event(self.performance._events[-2])
         Fd_last = sum(softmax_vec[-1][0:index_last])
         # it consist of two parts: the item before the last (shift) is an action
@@ -509,18 +509,26 @@ class weight_generate(object):
         #               less than that pitch is set impossible in our algorithm
         # 2: shift step is less than the last shift step
 
+        index_next = hotcoding.encode_event(next_event)
         total_steps = len(self.performance) + 1
         generator.initialize()
         self.performance, softmax_vec_next = generator._model.generate_performance(
             total_steps, self.performance, **args)
         self.performance._events.pop()
         fd_next = softmax_vec_next[-1][index_next]
-        Fd_next = sum(softmax_vec_next[-1][0:index_next])
+        Fd_next = fd_shift * sum(softmax_vec_next[-1][0:index_next])
+        # the last item in F
         fd = fd_shift*fd_next
         Fd = Fd_last + Fd_next
 
-        w = np.log(fd*1000) - np.log((1-Fd)*1000)
-        # * 1000, in case fd or Fd is too small
+        if fd == 0:
+            print("fd %d" % fd_shift)
+            #---------------------------------------------------------------------------------------------
+            w = -1000
+        else:
+            w = np.log(fd * 1000) - np.log((1-Fd) * 1000)
+            # * 1000, in case fd or Fd is too small
+
         return w
 
 
@@ -595,7 +603,7 @@ class weight_generate(object):
         :return: weight
         """
         assert isinstance(event, PerformanceEvent), "not a Performance Event"
-        total_steps = self.performance.__len__() + 1
+        total_steps = len(self.performance) + 1
         generator.initialize()
         self.performance, softmax_vec = generator._model.generate_performance(
             total_steps, self.performance, **args)
@@ -631,31 +639,6 @@ class sampler_given_sections(object):
         self.num_particles = int(num_particles)
         self.num_velocity_bins = num_velocity_bins
 
-    # def generate_to_fix_section(self, performance_prev, performance_next):
-    #
-    #     # the start action of next performance must be turn on or turn off.
-    #     assert performance_next[0].event_type != 3
-    #     pitch = performance_next[0].event_value
-    #     # if performance_next[0].event_type == 3:
-    #     #     gap = performance_next._events.pop(0)
-    #     #     gap_value = gap.event_value
-    #     arrive_step = performance_next.start_step
-    #     # %???????????????????????????????????????????????---------------------------
-    #     for i in range(self.num_particles):
-    #         pull_back = weight_generate(performance_prev)
-    #         w_time = pull_back.sample_to_time(self.generator, arrive_step, self.args)
-    #         if performance_next[0].event_type == 1:
-    #             w_pitch = pull_back.sample_to_onpitch(self.generator, pitch, self.args)
-    #         else:
-    #             w_pitch = pull_back.sample_to_offpitch(self.generator, pitch, self.args)
-    #         self.w.append(w_time*w_pitch)
-    #         pull_back.performance._events.pop()
-    #         pull_back.performance._events = pull_back.performance._events + performance_next._events
-    #         # connect to the next section
-    #         self.perf_list.append(pull_back.performance)
-    #
-    #     self.systematic_resample()
-
     def generate_to_fix_section(self, performance_s_prev, performance_next):
         """
         genrate different particles(samples) with the same input or different inputs
@@ -688,15 +671,15 @@ class sampler_given_sections(object):
         else:
             arrive_step = performance_next.start_step + performance_next[0].event_value
             index_start = 1
-
+        # arrive_step is not correct, the sample may shift several times in the .
         for i in range(self.num_particles):
             if isinstance(performance_s_prev, performance_lib.Performance):
                 performance_prev = performance_s_prev
             else:
                 performance_prev = performance_s_prev[i]
             pull_back = weight_generate(performance_prev)
-            w_section = pull_back.sample_to_next_section(self.generator,
-                                                         arrive_step, performance_next[index_start], self.args)
+            w_section = pull_back.section_generate(self.generator,
+                                                   arrive_step, performance_next[index_start], self.args)
             self.w.append(w_section)
             pull_back.performance._events = pull_back.performance._events + performance_next._events[index_start:]
             # connect to the next section, delete the first possible shift
@@ -735,12 +718,13 @@ class sampler_given_sections(object):
             re_index[k] = j
             u += ninv
 
-        self.perf_list = [self.perf_list[i] for i in re_index]
+        self.perf_list = [copy.deepcopy(self.perf_list[i]) for i in re_index]
         self.w = []
         # return re_index
 
-def performance_to_notes_write_music(num_outputs, perf_list,
-                                     output_dir, max_note_duration, end_time=None):
+
+def performance_to_notes_to_music(num_outputs, perf_list,
+                                  output_dir, max_note_duration, end_time=None):
     """
     Save the first num_outputs sequence in perf_list.
     give weight a small value if the duration is more than 5 seconds.!!!!!!!!!!!!!!!!!
@@ -780,6 +764,13 @@ def performance_to_notes_write_music(num_outputs, perf_list,
 
 
 def loglike_from_note_sequences(generator, generated_note_sequences, args):
+    """
+    The note sequence is firstly converted into performance, then get the new
+    :param generator:
+    :param generated_note_sequences:
+    :param args:
+    :return:
+    """
     softmaxes = []
     event_sequences = []
     for note_sequence in generated_note_sequences:
@@ -830,14 +821,15 @@ def evaluate_log_likelihood(event_sequences, softmaxes):
         end_pos = len(event_sequences[i])
         start_pos = end_pos - len(softmaxes[i])
         loglik = []
+        # loglik = 0
         for softmax_pos, position in enumerate(range(start_pos, end_pos)):
             hotcoding = PerformanceOneHotEncoding()
             index = hotcoding.encode_event(event_sequences[i][position])
             #-------------libo----------------------sequence, event------------------------
             loglik_pos = np.log(softmaxes[i][softmax_pos][index])
-            # ----------libo--------sequence, event, index---------------------------------
             loglik.append(loglik_pos)
-            # loglik += np.log(softmax[i][softmax_pos][index])
+            # loglik += np.log(softmaxes[i][softmax_pos][index])
+            # ----------libo--------sequence, event, index---------------------------------
             # --------------libo a list of log likelihood in i-th sequence------------------
         all_loglik.append(loglik)
 
@@ -862,13 +854,15 @@ def main(unused_argv):
 
     note_sections_selected = []
     # a note sequence list
-    for note_section in note_sections:
-        note_sections_selected.append(note_section[1])
-    # obtain selected sections in each original note sequence
+    num_to_generate = 5
+    for i in range(num_to_generate):
+    # for note_section in note_sections:
+        note_sections_selected.append(note_sections[i][1])
+        # obtain selected sections in each original note sequence
     # a better way is to extract the necessary time period of sequence-----------------------------------
 
     cut_points = [10, 20]
-    # cut_points = [10, 20, 30, 40]?????????????????????????????
+    # cut_points = [10, 20, 30, 40]------------------------------------------
     note_subsections = split_Notesequences(note_sections_selected,
                                            cut_points_seconds=cut_points, start_time_shift=True)
     # a list of list of subsections, which will be adopted to generate and test
@@ -912,15 +906,15 @@ def main(unused_argv):
                                                                           performance_next)
             performance_prev = performances_pfrnn
             # the first generation is different from the following steps, since it inputs list of performance
-        after_gen_notes = performance_to_notes_write_music(num_particles,
-                                                           performances_pfrnn, output_dir, max_note_duration)
+        after_gen_notes = performance_to_notes_to_music(num_particles,
+                                                        performances_pfrnn, output_dir, max_note_duration)
         # the reason why compute the log likely hood after note sequences are generated:
         # when the sequence is converted to note sequence, un reasonable actions, like the no-on note off action
         # (as magenta declare that always happen) will be deleted. These will affect the sequence and the possibility.
         #  or "to sequence" and other functions
         after_gen_log = loglike_from_note_sequences(generator, after_gen_notes, args)
-        # a number for a sequence or a list of every item for each step is needed------??????????????????????????
-        # do we need to select particles??????????????????????????
+        # a number for a sequence or a list of every item for each step is needed--
+        # do we need to select particles based on the log likely hood------------------??????????????????????????
         after_gen_note_section.append(after_gen_notes)
         after_gen_all_log.append(after_gen_log)
 

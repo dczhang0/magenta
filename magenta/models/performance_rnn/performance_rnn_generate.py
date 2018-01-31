@@ -39,7 +39,7 @@ from magenta.protobuf import music_pb2
 
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string(
-    'run_dir', '~/Downloads/performance_rnn/logdir15/run1',
+    'run_dir', None,
     'Path to the directory where the latest checkpoint will be loaded from.')
 tf.app.flags.DEFINE_string(
     'bundle_file', '~/data/performance_new.mag',
@@ -47,7 +47,7 @@ tf.app.flags.DEFINE_string(
     'run_dir, unless save_generator_bundle is True, in which case both this '
     'flag and run_dir are required')
 tf.app.flags.DEFINE_boolean(
-    'save_generator_bundle', True,
+    'save_generator_bundle', False,
     'If true, instead of generating a sequence, will save this generator as a '
     'bundle file in the location specified by the bundle_file flag')
 tf.app.flags.DEFINE_string(

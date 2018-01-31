@@ -29,7 +29,7 @@ from magenta.protobuf import music_pb2
 # Ensure that the track extends up to the step we want to start generating.
 # performance.set_length(generate_start_step - performance.start_step)
 
-NUM_OUTPUTS = 20
+NUM_OUTPUTS = 40
 CONFIG = 'performance'
 BUNDLE_PATH = "~/data/performance_new.mag"
 NUM_STEPS = 200
@@ -37,7 +37,7 @@ PRIMER_MELODY = "[60, -2, 60, -2, 67, -2, 67, -2]"
 # PRIMER_MELODY = "[]"
 PRIMER_PITCHES = ''
 PRIMER_MIDI = ''
-
+OUTPUT_DIR = '~/data/generated'
 # def para_libo():
 #     NUM_OUTPUTS = 1
 #     CONFIG = 'performance'
@@ -68,7 +68,7 @@ tf.app.flags.DEFINE_string(
 tf.app.flags.DEFINE_string(
     'config', CONFIG, 'Config to use.')
 tf.app.flags.DEFINE_string(
-    'output_dir', '/tmp/performance_rnn/generated',
+    'output_dir', OUTPUT_DIR,
     'The directory where MIDI files will be saved to.')
 tf.app.flags.DEFINE_integer(
     'num_outputs', NUM_OUTPUTS,

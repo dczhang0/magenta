@@ -24,12 +24,12 @@ from magenta.models.performance_rnn import performance_lib
 
 def mask_matrix(pitch_max, shift_max):
     """
-    # 127(note on)+127(note off) +1000 (shift)
+    # 128(note on.0-127)+128(note off0-127) +shift_max(1000, or other number)
     # the same with probability vector: [pitch on, pitch off, shift]
     # proof from file performance_encoder_decoder in folder performance_rnn
     # and from function PerformanceEvent in file performance_lib in folder performance_rnn
     :param pitch_max: = len([pitch on pitch off])
-    :param shift_max: 1000
+    :param shift_max: 1000 or other number
     :return: mask matrix, a block matrix as follow
     #  |\    |       |
     #  |0 \ i|  0    |
@@ -69,8 +69,10 @@ def mask_matrix(pitch_max, shift_max):
 #         i = i - 1
 #     mask_mat = mask_mat.T
 #     return mask_mat
-MASK_MATRIX = mask_matrix(256, performance_lib.MAX_SHIFT_STEPS)
-# MASK_MATRIX = mask_matrix(56, performance_lib.MAX_SHIFT_STEPS-950)
+
+MASK_MATRIX = mask_matrix(2*(performance_lib.MAX_MIDI_PITCH - performance_lib.MIN_MIDI_PITCH+1),
+                          performance_lib.MAX_SHIFT_STEPS)
+# MASK_MATRIX = mask_matrix(256, performance_lib.MAX_SHIFT_STEPS)
 # Libo-------------------mask matrix (transposed based on the input in the graph)--------------------------
 # libo-------------------the same with the onehot encoding and decoding order----------------------
 
@@ -255,6 +257,7 @@ def build_graph(mode, config, sequence_example_file_paths=None):
       tf.add_to_collection('inputs', inputs)
       tf.add_to_collection('temperature', temperature)
       tf.add_to_collection('softmax', softmax)
+      # tf.add_to_collection('logits', logits)
       # Flatten state tuples for metagraph compatibility.
       for state in tf_nest.flatten(initial_state):
         tf.add_to_collection('initial_state', state)

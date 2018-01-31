@@ -26,6 +26,7 @@ from magenta.common import state_util
 from magenta.models.shared import events_rnn_graph
 import magenta.music as mm
 from magenta.models.performance_rnn.performance_encoder_decoder import PerformanceOneHotEncoding
+# from magenta.music.encoder_decoder import EventSequenceEncoderDecoder
 #---------------------------------libo add-------------------------------------------------------
 
 class EventSequenceRnnModelException(Exception):
@@ -56,6 +57,61 @@ class EventSequenceRnnModel(mm.BaseModel):
   def _batch_size(self):
     """Extracts the batch size from the graph."""
     return self._session.graph.get_collection('inputs')[0].shape[0].value
+
+  def generic_update(self, inputs, initial_state, temperature=1.0):
+    """
+    If it's the first step (initial_state is zero_state), the inputs should be all the encoded sequence.
+    If the state is some middle state, the inputs will be the encoded last event in the sequence
+    :param inputs:
+    :param initial_state:
+    :return: final_state,
+               softmax:
+    """
+
+    graph_inputs = self._session.graph.get_collection('inputs')[0]
+    graph_initial_state = self._session.graph.get_collection('initial_state')
+    graph_final_state = self._session.graph.get_collection('final_state')
+    graph_softmax = self._session.graph.get_collection('softmax')[0]
+    graph_temperature = self._session.graph.get_collection('temperature')
+
+    feed_dict = {graph_inputs: inputs, tuple(graph_initial_state): initial_state}
+    if graph_temperature:
+        feed_dict[graph_temperature[0]] = temperature
+    final_state, softmax = self._session.run([graph_final_state, graph_softmax], feed_dict)
+    # --------libo: at the first rnn step, the softmax vector is one less than that of the sequence-------
+    # --------libo: since there is no softmax vector for the first event.---------------------
+    # --------softmax[:, :-1, :]: delete the last softmax vector, which is for new step------
+    # --------in the middle state, softmax is just for the last event
+
+    return final_state, softmax
+
+  def first_update(self, event_sequence):
+      graph_initial_state = self._session.graph.get_collection('initial_state')
+      zero_state = state_util.unbatch(self._session.run(graph_initial_state))[0]
+      # initial_states = []
+      # initial_states.append(zero_state)
+      event_sequences = []
+      initial_state = []
+      for state in zero_state:
+          initial_state.append(np.reshape(state, [1, 512]))
+      # 1,512,,,,,,,,,512
+
+      event_sequences.append(event_sequence)
+      inputs = self._config.encoder_decoder.get_inputs_batch(event_sequences, full_length=True)
+      final_state_ini, softmax_ini = self.generic_update(inputs, initial_state)
+
+      # input = self._config.encoder_decoder.get_inputs_batch(event_sequences, full_length=True)[0]
+
+      return event_sequences, softmax_ini, final_state_ini
+
+  def after_update(self, event_sequence, state):
+      event_sequences = []
+      event_sequences.append(event_sequence)
+      inputs = self._config.encoder_decoder.get_inputs_batch(event_sequences)
+      final_state, softmax = self.generic_update(inputs, state)
+      # indices = self._config.encoder_decoder.extend_event_sequences(
+      #     event_sequences, softmax)
+      return event_sequences, softmax, final_state
 
   def _generate_step_for_batch(self, event_sequences, inputs, initial_state,
                                temperature):
@@ -109,7 +165,6 @@ class EventSequenceRnnModel(mm.BaseModel):
       # --------libo: the length of softmax vector is one less than that of the sequence-------
       # --------libo: since there is no softmax vector for the first step.---------------------
       # --------softmax[:, :-1, :]: delete the last softmax vector, which is for new step------
-      # --------softmax[:, :-1, :]: delete the last softmax vector, which is for new step------
       # evaluate_log_likelihood will compute the loglik from the end---------------------------
     else:
       loglik = np.zeros(len(event_sequences))
@@ -119,7 +174,7 @@ class EventSequenceRnnModel(mm.BaseModel):
     assert inputs[0][-1][input_index] == 1
     softmax_vector = softmax[-1, -1, :]
     assert softmax_vector[input_index] == 0
-    # ---------------------------libo check inputs and mask effect-------------------------------
+    # ------------------libo check inputs and mask effect------more efficient way--------------------
 
     indices = self._config.encoder_decoder.extend_event_sequences(
         event_sequences, softmax)
@@ -129,12 +184,8 @@ class EventSequenceRnnModel(mm.BaseModel):
     assert softmax_vector[indices] > 0
     # ---------------------------libo check inputs and mask effect-------------------------------
 
-    #print('loglik', loglik + np.log(p), len(event_sequences), list(map(len, event_sequences)), event_sequences[0][-1])
-    # print('loglik', loglik + np.log(p), list(map(len, event_sequences)), event_sequences[0][-1])
-    # 'NOTE_OFF', 'NOTE_ON', 'TIME_SHIFT',  'VELOCITY', 'event_type', 'event_value'
-    # print('event_sequence', event_sequences[0], event_sequences[0]._events)
     return final_state, loglik + np.log(p), softmax
-    #---------------------------------libo add softmax, indices----------------------------------------------------------
+    #---------------------------------libo add softmax----------------------------------------------------------
 
   def _generate_step(self, event_sequences, inputs, initial_states,
                      temperature):
@@ -184,13 +235,13 @@ class EventSequenceRnnModel(mm.BaseModel):
           padded_inputs[i:j],
           state_util.batch(padded_initial_states[i:j], batch_size),
           temperature)
-      #------------------------libo add softmax and indices --------------------------
+      #------------------------libo add softmax--------------------------
       final_states += state_util.unbatch(
           batch_final_state, batch_size)[:j - i - pad_amt]
       loglik[i:j - pad_amt] = batch_loglik[:j - i - pad_amt]
 
     return final_states, loglik, softmax_Libo
-    # ------------------------libo add softmax and indices -------------------
+    # ------------------------libo add softmax-------------------
 
   def _generate_branches(self, event_sequences, loglik, branch_factor,
                          num_steps, inputs, initial_states, temperature):
@@ -230,7 +281,7 @@ class EventSequenceRnnModel(mm.BaseModel):
       all_final_state, all_step_loglik, softmax_Libo = self._generate_step(
           all_event_sequences, all_inputs, all_final_state, temperature)
       all_loglik += all_step_loglik
-      # ------------------------libo add softmax and indices ------------------------------
+      # ------------------------libo add softmax------------------------------
     return all_event_sequences, all_final_state, all_loglik, softmax_Libo
 
   def _prune_branches(self, event_sequences, final_states, loglik, k):
@@ -338,7 +389,7 @@ class EventSequenceRnnModel(mm.BaseModel):
     event_sequences, final_state, loglik, softmax_Libo = self._generate_branches(
         event_sequences, loglik, branch_factor, first_iteration_num_steps,
         inputs, initial_states, temperature)
-    # ------------------------libo add softmax and indices -------------------*--------------------------------------
+    # ------------------------libo add softmax-------------------*--------------------------------------
     num_iterations = (num_steps -
                       first_iteration_num_steps) / steps_per_iteration
     # softmax_Libo = np.zeros((num_steps, 1256), dtype=np.float32)
@@ -346,7 +397,7 @@ class EventSequenceRnnModel(mm.BaseModel):
 
     # if beam_size == 1:
     softmax_all_Libo = softmax_Libo[0]
-    # ------------------------libo add softmax and indices ----------------------------------------------------------
+    # ------------------------libo add softmax ----------------------------------------------------------
 
     for i in range(num_iterations):
       event_sequences, final_state, loglik = self._prune_branches(
@@ -437,7 +488,7 @@ class EventSequenceRnnModel(mm.BaseModel):
       events, softmax_all_Libo = self._beam_search(events, num_steps - len(events), temperature,
                                  beam_size, branch_factor, steps_per_iteration,
                                  control_events, modify_events_callback)
-        #Libo
+        #------------------------Libo--------------------------------------------
     # -------------ends with max rnn step-----------------------------
     assert len(events) == len(softmax_all_Libo) + 1
     return events, softmax_all_Libo
@@ -551,6 +602,20 @@ class EventSequenceRnnModel(mm.BaseModel):
       loglik[batch_indices] = batch_loglik[0:num_extra]
 
     return loglik
+
+# class GenericEventSequenceRnnModel(EventSequenceRnnModel):
+
+
+
+    # def generic_update_integer(self, initial_state, input_integer):
+    #   # input = ???
+    #     raise Exception('not implemented')
+    #     return self.generic_update(self, initial_state, input)
+    #
+    # def score_sequence(self, sequence):
+    #
+    #     for s in sequence:
+    #         ...
 
 
 class EventSequenceRnnConfig(object):
