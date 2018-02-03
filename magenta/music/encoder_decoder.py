@@ -271,6 +271,9 @@ class EventSequenceEncoderDecoder(object):
       chosen_classes.append(chosen_class)
     return chosen_classes
 
+  def extend_event_sequence(self, event_sequences, softmax):
+    return
+
   def evaluate_log_likelihood(self, event_sequences, softmax):
     """Evaluate the log likelihood of multiple event sequences.
 

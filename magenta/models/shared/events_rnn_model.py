@@ -58,7 +58,7 @@ class EventSequenceRnnModel(mm.BaseModel):
     """Extracts the batch size from the graph."""
     return self._session.graph.get_collection('inputs')[0].shape[0].value
 
-  def generic_update(self, inputs, initial_state, temperature=1.0):
+  def one_step_forward(self, inputs, initial_state, temperature=1.0):
     """
     If it's the first step (initial_state is zero_state), the inputs should be all the encoded sequence.
     If the state is some middle state, the inputs will be the encoded last event in the sequence
@@ -85,33 +85,30 @@ class EventSequenceRnnModel(mm.BaseModel):
 
     return final_state, softmax
 
-  def first_update(self, event_sequence):
+  def first_step_forward(self, event_sequences):
       graph_initial_state = self._session.graph.get_collection('initial_state')
       zero_state = state_util.unbatch(self._session.run(graph_initial_state))[0]
       # initial_states = []
       # initial_states.append(zero_state)
-      event_sequences = []
       initial_state = []
       for state in zero_state:
           initial_state.append(np.reshape(state, [1, 512]))
       # 1,512,,,,,,,,,512
 
-      event_sequences.append(event_sequence)
       inputs = self._config.encoder_decoder.get_inputs_batch(event_sequences, full_length=True)
-      final_state_ini, softmax_ini = self.generic_update(inputs, initial_state)
+      final_state_ini, softmax_ini = self.one_step_forward(inputs, initial_state)
 
       # input = self._config.encoder_decoder.get_inputs_batch(event_sequences, full_length=True)[0]
 
-      return event_sequences, softmax_ini, final_state_ini
+      return softmax_ini, final_state_ini, initial_state
 
-  def after_update(self, event_sequence, state):
-      event_sequences = []
-      event_sequences.append(event_sequence)
+  def after_update(self, event_sequences, state):
+
       inputs = self._config.encoder_decoder.get_inputs_batch(event_sequences)
-      final_state, softmax = self.generic_update(inputs, state)
+      final_state, softmax = self.one_step_forward(inputs, state)
       # indices = self._config.encoder_decoder.extend_event_sequences(
       #     event_sequences, softmax)
-      return event_sequences, softmax, final_state
+      return softmax, final_state
 
   def _generate_step_for_batch(self, event_sequences, inputs, initial_state,
                                temperature):
@@ -174,7 +171,7 @@ class EventSequenceRnnModel(mm.BaseModel):
     assert inputs[0][-1][input_index] == 1
     softmax_vector = softmax[-1, -1, :]
     assert softmax_vector[input_index] == 0
-    # ------------------libo check inputs and mask effect------more efficient way--------------------
+    # ------------------libo check inputs and mask effect------more efficient way-------??------------
 
     indices = self._config.encoder_decoder.extend_event_sequences(
         event_sequences, softmax)

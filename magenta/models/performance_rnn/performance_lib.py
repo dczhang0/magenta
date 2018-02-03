@@ -332,10 +332,11 @@ class Performance(events_lib.EventSequence):
       #   current_step = step
       num_event_step = len(performance_events)
       shift_step = step - current_step
-      if shift_step > MAX_SHIFT_STEPS or num_event_step > MAX_EVENTS:
+      # if shift_step > MAX_SHIFT_STEPS or num_event_step > MAX_EVENTS:
+      # the latter will cause more problems
+      if shift_step > MAX_SHIFT_STEPS:
         # Shift time forward from the current step to this event.
-        if shift_step > MAX_SHIFT_STEPS:
-          print('shift steps %s >1000 or len events %s > 512' % (shift_step, num_event_step))
+        print('shift steps %s >1000 or len events %s' % (shift_step, num_event_step))
         return performance_events
       elif step > current_step:
         performance_events.append(

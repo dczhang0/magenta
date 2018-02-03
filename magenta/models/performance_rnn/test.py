@@ -96,6 +96,12 @@ class generator_bundle_args(object):
         return generator
 
 def onestep_forward_org(performance, generator):
+    """
+    return two-dimensional softmax
+    :param performance:
+    :param generator:
+    :return:
+    """
 
     args = {
         'temperature': FLAGS.temperature,
@@ -109,12 +115,28 @@ def onestep_forward_org(performance, generator):
         total_steps, performance, **args)
     return performance_org, softmax_org
 
-def onestep_forward_new(performance, generator):
+def first_step_forward_test(performance, generator):
+    """
+    return two-dimensional softmax
+    :param performance:
+    :param generator:
+    :return:
+    """
 
-    event_sequences, softmax_ini, final_state_ini = generator._model.first_update(performance)
+    event_sequences = []
+    event_sequences.append(performance)
+    softmax_ini, final_state_ini, _ = generator._model.first_step_forward(event_sequences)
     indices = generator._model._config.encoder_decoder.extend_event_sequences(
         event_sequences, softmax_ini)
+
     return event_sequences, softmax_ini[0], final_state_ini
+
+def step_forward(event_sequences, generator, state):
+    inputs = generator._model._config.encoder_decoder.get_inputs_batch(event_sequences)
+    final_state, softmax = generator._model.one_step_forward(inputs, state)
+    # indices = self._config.encoder_decoder.extend_event_sequences(
+    #     event_sequences, softmax)
+    return softmax, final_state
 
 def melody_to_sequence(simple_melody, input_start_step=0, num_velocity_bins=0):
     primer_melody = magenta.music.Melody(ast.literal_eval(simple_melody))
@@ -144,12 +166,18 @@ def main(unused_argv):
     generator = aaa.get_generator(config_name=config)
     # initial step (first step test)
     generator.initialize()
-    performance_org, softmax_org = onestep_forward_org(performance, generator)
+    performances_org, softmax_org = onestep_forward_org(performance, generator)
 
-    performance_new, softmax_new, _ = onestep_forward_new(performance, generator)
+    performances_new, softmax_new, state = first_step_forward_test(performance, generator)
     # assert softmax_new.all() == softmax_org.all()
     # assert softmax_new.any() == softmax_org.any()
     assert np.array_equal(softmax_new, softmax_org), "generate with rnn state is not correct"
+
+    softmax, final_state = generator._model.after_update(performances_new, state)
+    softmax_t, final_state_t = step_forward(performances_new, generator, state)
+    assert np.array_equal(softmax, softmax_t)
+    assert np.array_equal(final_state, final_state_t)
+
     print("okay")
 
 
