@@ -85,9 +85,12 @@ class EventSequenceRnnModel(mm.BaseModel):
 
     return final_state, softmax
 
-  def first_step_forward(self, event_sequences):
+  def first_step_forward(self, event_sequences, beam_size=1):
+
       graph_initial_state = self._session.graph.get_collection('initial_state')
       zero_state = state_util.unbatch(self._session.run(graph_initial_state))[0]
+      # initial_states = [zero_state] * beam_size
+      #------------------use that to generate several samples one time------------
       # initial_states = []
       # initial_states.append(zero_state)
       initial_state = []

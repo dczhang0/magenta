@@ -28,7 +28,11 @@ from magenta.pipelines import pipeline
 from magenta.protobuf.music_pb2 import NoteSequence
 from magenta.music.sequences_lib import extract_subsequence
 from scipy.special import logsumexp
-
+import csv
+import matplotlib.pyplot as plt
+import pandas as pd
+import itertools
+import random
 # def notesequence_from_dir(input_dir, output_file=None, num_threads=1, recursive=False):
 #     """Converts files to NoteSequences and writes to `output_file`.
 #     if there are too many midi files, call the convert_directory in scripts
@@ -260,42 +264,22 @@ def performances_from_Notesequences(primer_sequences,
                                     min_events_discard=1, max_events_truncate=None, no_start_shift=False):
     """
     Extracts performances from the given non-empty NoteSequence.
+
     situation 1: the real start time of sequence is start_time_offset, but in the note sequence
                   the start time is set as 0. (original magenta)
     situation 2: the real start time of sequence is start_time_offset, the note start at real time
     :param primer_sequences: a list of Note sequences
-    :param start_step: Start extracting a sequence at this time step.------------delete----------------
+    :param start_step: Start extracting a sequence at this time step.------------delete-------!!!!!!---------
     :param min_events_discard: Minimum length of tracks in events. Shorter tracks are discarded.
     :param max_events_truncate: Maximum length of tracks in events. Longer tracks are truncated.
-
+    :param no_start_shift: only for the last section,
+                        which is not suitable for multiple sections generation---!!!!!!!!!-
     :return:performance_lib.Performance
     """
     assert primer_sequences != []
-    steps_per_second = performance_lib.DEFAULT_STEPS_PER_SECOND
-    num_velocity_bins = 0
     performances = []
-    # start_step = 0
-    for sequence in primer_sequences:
-        quantized_sequence = mm.quantize_note_sequence_absolute(sequence, steps_per_second)
-        # start_time: 9.99595359375
-        # end_time: 10.0
-        # quantized_start_step: 1000
-        # quantized_end_step: 1001
-        # small problem here--------------------------------------------------------------------------
-        start_inf = quantized_sequence.subsequence_info.start_time_offset * steps_per_second
-        time_first_action = quantized_sequence.notes[0].quantized_start_step
-        if no_start_shift:
-            start_step = time_first_action
-            # start from the first event or action, situation 1 or 2, no first shift
-        elif start_inf > time_first_action:
-            start_step = 0
-            # situation 1 (start_inf(2000) > time_first_action(6)) and allow shift
-        else:
-            start_step = start_inf
-            # situation 2 (start_inf(2000) <= time_first_action(2006 or 2000)), allow shift.
-
-        performance = performance_lib.Performance(quantized_sequence, start_step=start_step,
-                                  num_velocity_bins=num_velocity_bins)
+    for sequence in primer_sequences[:-1]:
+        performance = performance_from_Notesequence(sequence)
         if (max_events_truncate is not None and len(performance) > max_events_truncate):
             performance.truncate(max_events_truncate)
         if len(performance) < min_events_discard:
@@ -303,16 +287,20 @@ def performances_from_Notesequences(primer_sequences,
         else:
             performances.append(performance)
 
+    if no_start_shift:
+        performance = performance_from_Notesequence(primer_sequences[-1], no_start_shift=True)
+    else:
+        performance = performance_from_Notesequence(primer_sequences[-1])
+    performances.append(performance)
     # might be empty if no input.
     return performances
 
 
-def performance_from_Notesequence(primer_sequence,
-                                  min_events_discard=None, max_events_truncate=None, no_start_shift=False):
+def performance_from_Notesequence(primer_sequence, no_start_shift=False):
     """
     Extracts performance from the given non-empty NoteSequence.
     :param primer_sequence: a list of Note sequences
-    :param start_step: Start extracting a sequence at this time step.--------------delete-------------
+    :param start_step: Start extracting a sequence at this time step.--------------delete-----!!!!--------
     :param min_events_discard: Minimum length of tracks in events. Shorter tracks are discarded.
     :param max_events_truncate: Maximum length of tracks in events. Longer tracks are truncated.
 
@@ -334,13 +322,6 @@ def performance_from_Notesequence(primer_sequence,
         # situation 2 (start_inf(2000) <= time_first_action(2006 or 2000)), allow shift.
     performance = performance_lib.Performance(quantized_sequence, start_step=start_step,
                               num_velocity_bins=num_velocity_bins)
-
-    if (max_events_truncate is not None and len(performance) > max_events_truncate):
-        performance.truncate(max_events_truncate)
-
-    if (min_events_discard is not None and len(performance) < min_events_discard):
-        print('discard one short sequence(%d-length)', len(performance))
-        return
     # start_step won't change with the pop() or delete, num_steps and end_step will change
     # start_step can't be set after performance is created.
 
@@ -658,7 +639,7 @@ class sampler_given_sections(object):
         #     arrive_step = performance_next.start_step + performance_next[0].event_value
         #     index_start = 1
         # # arrive_step is not correct, the sample may shift several times in the .
-        assert performance_next[0].event_type == 3
+        assert performance_next[0].event_type != 3
         index_start = 0
         arrive_step = performance_next.start_step
         next_start_event = performance_next._events[index_start]
@@ -771,7 +752,7 @@ def performance_to_notes_to_music(num_outputs, perf_list,
     return generated_note_sequences
 
 
-def loglike_from_note_sequences(generator, generated_note_sequences):
+def loglike_note_sequences(generator, generated_note_sequences):
     """
     The note sequence is firstly converted into performance, then get the new
     :param generator:
@@ -790,11 +771,11 @@ def loglike_from_note_sequences(generator, generated_note_sequences):
         softmaxes.append(softmax[0, :-1, :])
         # that is a sudo forward, we want to get all the probability about the current sequence
         # ":-1" delete the last softmax, which is about the next step.
-    all_loglik = evaluate_log_likelihood(performances, softmaxes)
+    all_loglik = loglike_performances(performances, softmaxes)
     return all_loglik
 
 
-def evaluate_log_likelihood(event_sequences, softmaxes):
+def loglike_performances(performances, softmaxes=None, generator=None):
     """Evaluate the log likelihood of multiple event sequences.
 
     Each event sequence is evaluated from the end. If the size of the
@@ -804,7 +785,7 @@ def evaluate_log_likelihood(event_sequences, softmaxes):
     only the events at the end of the sequence will be evaluated.
 
     Args:
-      event_sequences: A list of EventSequence objects.
+      performances: A list of EventSequence objects.
       softmaxes: A list of (list of softmax) probability vectors. The list of
           softmaxes should be the same length as the list of event sequences.
           [i, j, k] the first one means the i-th performance sequence,
@@ -818,25 +799,34 @@ def evaluate_log_likelihood(event_sequences, softmaxes):
       ValueError: If one of the event sequences is too long with respect to the
           corresponding softmax vectors.
     """
+    if not softmaxes:
+        # softmaxes, final_state, _ = generator._model.first_step_forward(performances)
+        # revise it: let function generate several samples one time-----------------
+        softmaxes = []
+        for performance in performances:
+            event_sequences = [performance]
+            softmax, final_state, _ = generator._model.first_step_forward(event_sequences)
+            softmaxes.append(softmax[0, :-1, :])
+
     all_loglik = []
-    for i in xrange(len(event_sequences)):
-        if len(softmaxes[i]) >= len(event_sequences[i]):
+    for i in xrange(len(performances)):
+        if len(softmaxes[i]) >= len(performances[i]):
             raise ValueError(
                 'event sequence must be longer than softmax vector (%d events but '
-                'softmax vector has length %d)' % (len(event_sequences[i]),
+                'softmax vector has length %d)' % (len(performances[i]),
                                                    len(softmaxes[i])))
-        end_pos = len(event_sequences[i])
+        end_pos = len(performances[i])
         start_pos = end_pos - len(softmaxes[i])
         loglik = []
         # loglik = 0
         for softmax_step, position in enumerate(range(start_pos, end_pos)):
             hotcoding = PerformanceOneHotEncoding()
-            index_next = hotcoding.encode_event(event_sequences[i][position])
+            index_next = hotcoding.encode_event(performances[i][position])
             #-------------libo----------------------sequence, event------------------------
             loglik_pos = np.log(softmaxes[i][softmax_step][index_next])
             # ----------libo-------sequence,  event, index_next---------------------------------
             # loglik += np.log(softmaxes[i][softmax_step][index_next])
-            loglik.append(loglik_pos)
+            loglik.append(float(loglik_pos))
             # --------------libo a list of log likelihood in i-th sequence------------------
         all_loglik.append(loglik)
 
@@ -854,12 +844,11 @@ def prepare_data(section_seconds, num_selected_sections, cut_points):
                                         hop_size_seconds=section_seconds, check_last_len=True)
     # obtain small sections of all the note sequences
 
-    note_sections_selected = []
-    # a note sequence list
-    for i in range(num_selected_sections):
-    # for note_section in note_sections:
-        note_sections_selected.append(note_sections[i][1])
-        # obtain selected sections in each original note sequence
+    note_sections_flat = list(itertools.chain(*note_sections))
+    # random.randint(1, 10)
+    random_num = range(len(note_sections_flat))
+    random.shuffle(random_num)
+    note_sections_selected = note_sections_flat[:num_selected_sections]
     # a better way is to extract the necessary time period of sequence-----------------------------------
     # # test------------------------
     # config = FLAGS.config
@@ -937,7 +926,7 @@ def main(unused_argv):
     :return:
     """
     section_seconds = 30
-    num_selected_sections = 1
+    num_selected_sections = 4
     cut_points = [10, 20]
     # cut_points = [10, 20, 30, 40]------------------------------------------
     output_dir_smc = os.path.expanduser(FLAGS.output_dir)
@@ -965,10 +954,12 @@ def main(unused_argv):
     note_samples_org = []
     logs_org = []
     note_samples_brutal = []
-    logs_brtual = []
+    logs_brutal = []
     notes_sample_smc = []
     logs_smc = []
-
+    logs_sumed_smc = []
+    logs_sumed_brutal = []
+    logs_sumed_org = []
 
     for performance_subsection in performance_subsections:
         num_samples_per_generation = 1
@@ -985,7 +976,16 @@ def main(unused_argv):
         len_actions_all.append(len_actions)
         note_org = performance_to_notes_to_music(num_samples_per_generation, [performance_org],
                                                  output_dir_org, max_note_duration)
-        log_org = loglike_from_note_sequences(generator, note_org)
+        log_org_list = loglike_performances([performance_org], generator=generator)
+        log_org = log_org_list[0]
+        # len_cut_second = len_actions[0] + len_actions[1]
+        # log_sumed_org = [sum(log_org[:len_actions[0]-1]),
+        #                  sum(log_org[len_actions[0]:len_cut_second-1]), sum(log_org[len_cut_second:])]
+        log_sumed_org = [sum(log_org[:len_actions[0]-1]),
+                         sum(log_org[len_actions[0]:-len_actions[2]]), sum(log_org[-len_actions[2]+1:])]
+        # ---------------------------------only for three sections-----------------------------------------
+        print(log_sumed_org)
+        logs_sumed_org.append(log_sumed_org)
         note_samples_org.append(note_org)
         logs_org.append(log_org)
 
@@ -1006,7 +1006,14 @@ def main(unused_argv):
         # when the sequence is converted to note sequence, un reasonable actions, like the no-on note off action
         # (as magenta declare that always happen) will be deleted. These will affect the sequence and the possibility.
         #  or "to sequence" and other functions
-        log_smc = loglike_from_note_sequences(generator, note_samples_smc)
+        # log_smc = loglike_note_sequences(generator, note_samples_smc)
+        log_smc_list = loglike_performances([performances_pfrnn[0]], generator=generator)
+        log_smc = log_smc_list[0]
+        log_sumed_smc = [sum(log_smc[:len_actions[0]-1]),
+                         sum(log_smc[len_actions[0]:-len_actions[2]]), sum(log_smc[-len_actions[2]+1:])]
+        # ---------------------------------only for three sections-----------------------------------------
+        print(log_sumed_smc)
+        logs_sumed_smc.append(log_sumed_smc)
         notes_sample_smc.append(note_samples_smc)
         logs_smc.append(log_smc)
 
@@ -1018,9 +1025,95 @@ def main(unused_argv):
             # deep copy necessary?--------------------------------------
         note_brutle = performance_to_notes_to_music(num_samples_per_generation,
                                                      performances_brutal, output_dir_brutal, max_note_duration)
-        log_brutal = loglike_from_note_sequences(generator, note_brutle)
+        log_brutal_list = loglike_performances(performances_brutal, generator=generator)
+        log_brutal = log_brutal_list[0]
+        log_sumed_brutal = [sum(log_brutal[:len_actions[0]-1]),
+                         sum(log_brutal[len_actions[0]:-len_actions[2]]), sum(log_brutal[-len_actions[2]+1:])]
+        # ---------------------------------only for three sections-----------------------------------------
+        print(log_sumed_brutal)
+        logs_sumed_brutal.append(log_sumed_brutal)
         note_samples_brutal.append(note_brutle)
-        logs_brtual.append(log_brutal)
+        logs_brutal.append(log_brutal)
+
+
+    with open("/home/zha231/data/output_summed_log.csv", "wb") as f:
+        cw = csv.writer(f)
+        cw.writerow(["org"])
+        cw.writerows(r + [""] for r in logs_sumed_org)
+        cw.writerow(["smc"])
+        cw.writerows(r + [""] for r in logs_sumed_smc)
+        cw.writerow(["brutal"])
+        cw.writerows(r + [""] for r in logs_sumed_brutal)
+
+    with open("/home/zha231/data/output_log.csv", "wb") as f:
+        cw = csv.writer(f)
+        cw.writerow(["org"])
+        cw.writerows(r + [""] for r in logs_org)
+        cw.writerow(["smc"])
+        cw.writerows(r + [""] for r in logs_smc)
+        cw.writerow(["brutal"])
+        cw.writerows(r + [""] for r in logs_brutal)
+
+    aver_org = (sum(np.array(logs_sumed_org))/float(num_selected_sections)).tolist()
+    divid_smc = abs(np.array(logs_sumed_smc) - np.array(logs_sumed_org))
+    aver_smc = (sum(divid_smc) / float(num_selected_sections)).tolist()
+    divid_brutal = abs(np.array(logs_sumed_brutal) - np.array(logs_sumed_org))
+    aver_brutal = (sum(divid_brutal) / float(num_selected_sections)).tolist()
+    std_org = (np.std(np.array(logs_sumed_org), axis=0)).tolist()
+    std_smc = (np.std(divid_smc, axis=0)).tolist()
+    std_brutal = (np.std(divid_brutal, axis=0)).tolist()
+
+    with open("/home/zha231/data/output_log_aver.csv", "wb") as f:
+        cw = csv.writer(f)
+        cw.writerow(["len"])
+        cw.writerows(r + [""] for r in len_actions_all)
+        cw.writerow(["org"])
+        cw.writerow(aver_org)
+        cw.writerow(std_org)
+        cw.writerow(["smc"])
+        cw.writerow(aver_smc)
+        cw.writerow(std_smc)
+        cw.writerow(["brutal"])
+        cw.writerow(aver_brutal)
+        cw.writerow(std_brutal)
+
+    logs_100_act_org = []
+    logs_100_act_smc = []
+    logs_100_act_brutal = []
+    for i in range(num_selected_sections):
+        log_100_act_org = logs_org[i][-len_actions[2]+1: -len_actions[2]+21]
+        logs_100_act_org.append(log_100_act_org)
+        log_100_act_smc = logs_smc[i][-len_actions[2]+1: -len_actions[2]+21]
+        logs_100_act_smc.append(log_100_act_smc)
+        log_100_act_brutal = logs_brutal[i][-len_actions[2]+1: -len_actions[2]+21]
+        logs_100_act_brutal.append(log_100_act_brutal)
+    log_action_smc_divid = abs(np.array(logs_100_act_smc) - np.array(logs_100_act_org)).tolist()
+    log_action_brutal_divid = abs(np.array(logs_100_act_brutal) - np.array(logs_100_act_org)).tolist()
+
+    with open("/home/zha231/data/output_log_first_actions.csv", "wb") as f:
+        cw = csv.writer(f)
+        cw.writerow(["org"])
+        cw.writerows(r + [""] for r in logs_100_act_org)
+        cw.writerow(["smc"])
+        cw.writerows(r + [""] for r in logs_100_act_smc)
+        cw.writerows(r + [""] for r in log_action_smc_divid)
+        cw.writerow(["brutal"])
+        cw.writerows(r + [""] for r in logs_100_act_brutal)
+        cw.writerows(r + [""] for r in log_action_brutal_divid)
+
+    log_plot_org = np.array(logs_100_act_org)
+    df = pd.DataFrame(log_plot_org[:, 0:10])
+    pl_fig = plt.figure()
+    df.boxplot()
+    pl_fig.savefig('log_plot_org.eps')
+    log_plot_smc = np.array(log_action_smc_divid)
+    df = pd.DataFrame(log_plot_smc[:, 0:10])
+    df.boxplot()
+    plt.savefig('log_plot_smc.eps')
+    log_plot_brutal = np.array(log_action_brutal_divid)
+    df = pd.DataFrame(log_plot_brutal[:, 0:10])
+    df.boxplot()
+    plt.savefig('log_plot_brutal.eps')
 
 def console_entry_point():
     tf.app.run(main)

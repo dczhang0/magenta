@@ -37,8 +37,8 @@ PRIMER_MELODY = "[60, -2, 60, -2, 67, -2, 67, -2]"
 # PRIMER_MELODY = "[]"
 PRIMER_PITCHES = ''
 PRIMER_MIDI = ''
-OUTPUT_DIR = '~/data/generated'
-OUTPUT_DIR_BRU = '~/data/generated_brutal'
+OUTPUT_DIR = '~/data/music_generated_smc'
+OUTPUT_DIR_BRU = '~/data/music_generated_brutal'
 OUTPUT_ORG = '~/data/music_section_org'
 # def para_libo():
 #     NUM_OUTPUTS = 1
