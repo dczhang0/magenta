@@ -37,7 +37,7 @@ MAX_NUM_VELOCITY_BINS = MAX_MIDI_VELOCITY - MIN_MIDI_VELOCITY + 1
 STANDARD_PPQ = constants.STANDARD_PPQ
 
 DEFAULT_STEPS_PER_SECOND = 100
-MAX_SHIFT_STEPS = 1000
+MAX_SHIFT_STEPS = 500
 # MAX_SHIFT_STEPS = 100
 # max_shift equal to "max_note_duration" in "to_sequence", which is the maximum note duration in generation.
 # Libo-------------------------------------maximum shift step------500???------------------------------------
@@ -336,7 +336,7 @@ class Performance(events_lib.EventSequence):
       # the latter will cause more problems
       if shift_step > MAX_SHIFT_STEPS:
         # Shift time forward from the current step to this event.
-        print('shift steps %s >1000 or len events %s' % (shift_step, num_event_step))
+        print('shift steps %s or len events %s' % (shift_step, num_event_step))
         return performance_events
       elif step > current_step:
         performance_events.append(

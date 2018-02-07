@@ -293,6 +293,9 @@ def performances_from_Notesequences(primer_sequences,
         performance = performance_from_Notesequence(primer_sequences[-1])
     performances.append(performance)
     # might be empty if no input.
+    # if len(performances) != len(primer_sequences):
+    #     print("not okay")
+    #     performance = performance_from_Notesequence(primer_sequences[1])
     return performances
 
 
@@ -674,7 +677,7 @@ class sampler_given_sections(object):
             # there are many steps in performance_next, in which most of the index is the same with the original
             if not np.array_equal(re_index, range(self.num_particles)):
                 num_copy += 1
-                print(self.perf_list[0].end_step)
+                # print(self.perf_list[0].end_step)
                 self.perf_list = [copy.deepcopy(self.perf_list[i]) for i in re_index]
                 self.final_state = [copy.deepcopy(self.final_state[i]) for i in re_index]
                 # to reduce the copy times.
@@ -698,6 +701,8 @@ class sampler_given_sections(object):
         # print(w)
         # print(sum(w))
         n = len(w)
+        if n != self.num_particles:
+            print("length weight %s" % n)
         assert n > 1
         u = np.random.rand() / n
         s = w[0]
@@ -866,7 +871,8 @@ def prepare_data(section_seconds, num_selected_sections, cut_points):
     performance_subsections = []
     for note_subsection in note_subsections:
         performance_subsection = performances_from_Notesequences(note_subsection, no_start_shift=True)
-        performance_subsections.append(performance_subsection)
+        if len(performance_subsection) == len(note_subsection):
+            performance_subsections.append(performance_subsection)
     # obtain list of list of performances
     return performance_subsections
 
@@ -926,7 +932,7 @@ def main(unused_argv):
     :return:
     """
     section_seconds = 30
-    num_selected_sections = 4
+    num_selected_sections = 1000
     cut_points = [10, 20]
     # cut_points = [10, 20, 30, 40]------------------------------------------
     output_dir_smc = os.path.expanduser(FLAGS.output_dir)
@@ -960,12 +966,16 @@ def main(unused_argv):
     logs_sumed_smc = []
     logs_sumed_brutal = []
     logs_sumed_org = []
+    ite = 0
 
     for performance_subsection in performance_subsections:
+        ite = ite + 1
+        print(ite)
         num_samples_per_generation = 1
         num_sections = len(performance_subsection)
+        # print("number of sections, %s" % num_sections)
+        # print("start time, %s; end time %s" % (performance_subsection[-1].start_step, performance_subsection[-1].end_step))
         assert num_sections > 2 and num_sections % 2 == 1
-        # int(num_sections) % 2
         # guarantee always generate a middle section
         len_actions = []
         performance_org = copy.deepcopy(performance_subsection[0])
@@ -1055,9 +1065,10 @@ def main(unused_argv):
         cw.writerows(r + [""] for r in logs_brutal)
 
     aver_org = (sum(np.array(logs_sumed_org))/float(num_selected_sections)).tolist()
-    divid_smc = abs(np.array(logs_sumed_smc) - np.array(logs_sumed_org))
+    # divid_smc = abs(np.array(logs_sumed_smc) - np.array(logs_sumed_org))
+    divid_smc = np.array(logs_sumed_smc) - np.array(logs_sumed_org)
     aver_smc = (sum(divid_smc) / float(num_selected_sections)).tolist()
-    divid_brutal = abs(np.array(logs_sumed_brutal) - np.array(logs_sumed_org))
+    divid_brutal = np.array(logs_sumed_brutal) - np.array(logs_sumed_org)
     aver_brutal = (sum(divid_brutal) / float(num_selected_sections)).tolist()
     std_org = (np.std(np.array(logs_sumed_org), axis=0)).tolist()
     std_smc = (np.std(divid_smc, axis=0)).tolist()
@@ -1087,8 +1098,8 @@ def main(unused_argv):
         logs_100_act_smc.append(log_100_act_smc)
         log_100_act_brutal = logs_brutal[i][-len_actions[2]+1: -len_actions[2]+21]
         logs_100_act_brutal.append(log_100_act_brutal)
-    log_action_smc_divid = abs(np.array(logs_100_act_smc) - np.array(logs_100_act_org)).tolist()
-    log_action_brutal_divid = abs(np.array(logs_100_act_brutal) - np.array(logs_100_act_org)).tolist()
+    log_action_smc_divid = (np.array(logs_100_act_smc) - np.array(logs_100_act_org)).tolist()
+    log_action_brutal_divid = (np.array(logs_100_act_brutal) - np.array(logs_100_act_org)).tolist()
 
     with open("/home/zha231/data/output_log_first_actions.csv", "wb") as f:
         cw = csv.writer(f)
@@ -1106,14 +1117,21 @@ def main(unused_argv):
     pl_fig = plt.figure()
     df.boxplot()
     pl_fig.savefig('log_plot_org.eps')
+    plt.close()
+
     log_plot_smc = np.array(log_action_smc_divid)
     df = pd.DataFrame(log_plot_smc[:, 0:10])
+    pl_fig = plt.figure()
     df.boxplot()
-    plt.savefig('log_plot_smc.eps')
+    pl_fig.savefig('log_plot_smc.eps')
+    plt.close()
+
     log_plot_brutal = np.array(log_action_brutal_divid)
     df = pd.DataFrame(log_plot_brutal[:, 0:10])
+    pl_fig = plt.figure()
     df.boxplot()
-    plt.savefig('log_plot_brutal.eps')
+    pl_fig.savefig('log_plot_brutal.eps')
+    plt.close()
 
 def console_entry_point():
     tf.app.run(main)

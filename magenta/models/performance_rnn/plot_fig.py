@@ -20,21 +20,28 @@ for j in range(num_selected_sections):
     # 0, 1-4, 5,6-9,10-13, 14, 15-18,19-22
     act_org = [float(first_actions[j+1][i]) for i in range(num_first_actions)]
     logs_100_act_org.append(act_org)
-    act_smc = [float(first_actions[j+10][i]) for i in range(num_first_actions)]
+    act_smc = [float(first_actions[j+6][i]) for i in range(num_first_actions)]
     log_action_smc_divid.append(act_smc)
-    act_brutal = [float(first_actions[j+19][i]) for i in range(num_first_actions)]
+    act_brutal = [float(first_actions[j+15][i]) for i in range(num_first_actions)]
     log_action_brutal_divid.append(act_brutal)
 
 log_plot_org = np.array(logs_100_act_org)
 df = pd.DataFrame(log_plot_org)
 pl_fig = plt.figure()
 df.boxplot()
-pl_fig.savefig('data/log_plot_org.eps')
+pl_fig.savefig('log_plot_org.eps')
+plt.close()
+
 log_plot_smc = np.array(log_action_smc_divid)
 df = pd.DataFrame(log_plot_smc)
+pl_fig = plt.figure()
 df.boxplot()
-plt.savefig('data/log_plot_smc.eps')
+pl_fig.savefig('log_plot_smc.eps')
+plt.close()
+
 log_plot_brutal = np.array(log_action_brutal_divid)
 df = pd.DataFrame(log_plot_brutal)
+pl_fig = plt.figure()
 df.boxplot()
-plt.savefig('data/log_plot_brutal.eps')
+pl_fig.savefig('log_plot_brutal.eps')
+plt.close()
