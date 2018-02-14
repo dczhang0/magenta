@@ -33,6 +33,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import itertools
 import random
+from scipy import stats
+
 # def notesequence_from_dir(input_dir, output_file=None, num_threads=1, recursive=False):
 #     """Converts files to NoteSequences and writes to `output_file`.
 #     if there are too many midi files, call the convert_directory in scripts
@@ -839,7 +841,7 @@ def loglike_performances(performances, softmaxes=None, generator=None):
 
 
 def prepare_data(section_seconds, num_selected_sections, cut_points):
-    output_file = "~/data/notesequences11.tfrecord"
+    output_file = "~/data/notesequences_11test.tfrecord"
     # input_dir = "~/data/data_2011"
     # notesequences = notesequence_from_dir(input_dir, output_file)
     notesequences = load_from_notesequence_file(output_file)
@@ -932,7 +934,7 @@ def main(unused_argv):
     :return:
     """
     section_seconds = 30
-    num_selected_sections = 1000
+    num_selected_sections = 10
     cut_points = [10, 20]
     # cut_points = [10, 20, 30, 40]------------------------------------------
     output_dir_smc = os.path.expanduser(FLAGS.output_dir)
@@ -1066,13 +1068,17 @@ def main(unused_argv):
 
     aver_org = (sum(np.array(logs_sumed_org))/float(num_selected_sections)).tolist()
     # divid_smc = abs(np.array(logs_sumed_smc) - np.array(logs_sumed_org))
-    divid_smc = np.array(logs_sumed_smc) - np.array(logs_sumed_org)
-    aver_smc = (sum(divid_smc) / float(num_selected_sections)).tolist()
-    divid_brutal = np.array(logs_sumed_brutal) - np.array(logs_sumed_org)
-    aver_brutal = (sum(divid_brutal) / float(num_selected_sections)).tolist()
-    std_org = (np.std(np.array(logs_sumed_org), axis=0)).tolist()
-    std_smc = (np.std(divid_smc, axis=0)).tolist()
-    std_brutal = (np.std(divid_brutal, axis=0)).tolist()
+    # divid_smc = np.array(logs_sumed_smc) - np.array(logs_sumed_org)
+    # aver_smc = (sum(divid_smc) / float(num_selected_sections)).tolist()
+    aver_smc = (sum(np.array(logs_sumed_smc)) / float(num_selected_sections)).tolist()
+    # divid_brutal = np.array(logs_sumed_brutal) - np.array(logs_sumed_org)
+    aver_brutal = (sum(np.array(logs_sumed_brutal)) / float(num_selected_sections)).tolist()
+    # std_org = (np.std(np.array(logs_sumed_org), axis=0)).tolist()
+    # std_smc = (np.std(np.array(logs_sumed_smc), axis=0)).tolist()
+    # std_brutal = (np.std(np.array(logs_sumed_brutal), axis=0)).tolist()
+    std_org = (stats.sem(np.array(logs_sumed_org), axis=0)).tolist()
+    std_smc = (stats.sem(np.array(logs_sumed_smc))).tolist()
+    std_brutal = (stats.sem(np.array(logs_sumed_brutal))).tolist()
 
     with open("/home/zha231/data/output_log_aver.csv", "wb") as f:
         cw = csv.writer(f)
@@ -1098,8 +1104,8 @@ def main(unused_argv):
         logs_100_act_smc.append(log_100_act_smc)
         log_100_act_brutal = logs_brutal[i][-len_actions[2]+1: -len_actions[2]+21]
         logs_100_act_brutal.append(log_100_act_brutal)
-    log_action_smc_divid = (np.array(logs_100_act_smc) - np.array(logs_100_act_org)).tolist()
-    log_action_brutal_divid = (np.array(logs_100_act_brutal) - np.array(logs_100_act_org)).tolist()
+    # log_action_smc_divid = (np.array(logs_100_act_smc) - np.array(logs_100_act_org)).tolist()
+    # log_action_brutal_divid = (np.array(logs_100_act_brutal) - np.array(logs_100_act_org)).tolist()
 
     with open("/home/zha231/data/output_log_first_actions.csv", "wb") as f:
         cw = csv.writer(f)
@@ -1107,31 +1113,31 @@ def main(unused_argv):
         cw.writerows(r + [""] for r in logs_100_act_org)
         cw.writerow(["smc"])
         cw.writerows(r + [""] for r in logs_100_act_smc)
-        cw.writerows(r + [""] for r in log_action_smc_divid)
+        # cw.writerows(r + [""] for r in log_action_smc_divid)
         cw.writerow(["brutal"])
         cw.writerows(r + [""] for r in logs_100_act_brutal)
-        cw.writerows(r + [""] for r in log_action_brutal_divid)
+        # cw.writerows(r + [""] for r in log_action_brutal_divid)
 
-    log_plot_org = np.array(logs_100_act_org)
-    df = pd.DataFrame(log_plot_org[:, 0:10])
-    pl_fig = plt.figure()
-    df.boxplot()
-    pl_fig.savefig('log_plot_org.eps')
-    plt.close()
-
-    log_plot_smc = np.array(log_action_smc_divid)
-    df = pd.DataFrame(log_plot_smc[:, 0:10])
-    pl_fig = plt.figure()
-    df.boxplot()
-    pl_fig.savefig('log_plot_smc.eps')
-    plt.close()
-
-    log_plot_brutal = np.array(log_action_brutal_divid)
-    df = pd.DataFrame(log_plot_brutal[:, 0:10])
-    pl_fig = plt.figure()
-    df.boxplot()
-    pl_fig.savefig('log_plot_brutal.eps')
-    plt.close()
+    # log_plot_org = np.array(logs_100_act_org)
+    # df = pd.DataFrame(log_plot_org[:, 0:10])
+    # pl_fig = plt.figure()
+    # df.boxplot()
+    # pl_fig.savefig('log_plot_org.eps')
+    # plt.close()
+    #
+    # log_plot_smc = np.array(logs_100_act_smc)
+    # df = pd.DataFrame(log_plot_smc[:, 0:10])
+    # pl_fig = plt.figure()
+    # df.boxplot()
+    # pl_fig.savefig('log_plot_smc.eps')
+    # plt.close()
+    #
+    # log_plot_brutal = np.array(logs_100_act_brutal)
+    # df = pd.DataFrame(log_plot_brutal[:, 0:10])
+    # pl_fig = plt.figure()
+    # df.boxplot()
+    # pl_fig.savefig('log_plot_brutal.eps')
+    # plt.close()
 
 def console_entry_point():
     tf.app.run(main)
